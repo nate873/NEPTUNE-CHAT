@@ -111,6 +111,13 @@ export default function LandingPage({ onGetStarted }) {
           </p>
         </div>
 
+        <p className="text-white/70 text-sm max-w-2xl mx-auto text-center mb-6 leading-relaxed">
+          Most random chat apps let anyone sign up with just an email
+          address. Neptune Chat requires a verified college email before
+          you can talk to anyone, so here's how that compares to a few
+          well-known alternatives.
+        </p>
+
         <div className="rounded-2xl bg-white/10 border border-white/20 backdrop-blur shadow-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
@@ -250,14 +257,14 @@ function Mark({ value, highlight }) {
         className={
           highlight
             ? "text-emerald-300 font-semibold"
-            : "text-emerald-300/70"
+            : "text-emerald-300/70 font-medium"
         }
       >
-        ✓
+        Yes
       </span>
     );
   }
-  return <span className="text-rose-300/70">✗</span>;
+  return <span className="text-rose-300/70 font-medium">No</span>;
 }
 
 function FaqItem({ question, answer }) {
