@@ -11,26 +11,53 @@ export default function LandingPage({ onGetStarted }) {
       </div>
 
       {/* Nav */}
-      <nav className="relative z-10 flex items-center justify-between px-6 md:px-10 py-6 max-w-6xl mx-auto">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">🔱</span>
-          <span className="text-white font-bold text-lg tracking-tight">
-            Neptune Chat
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => onGetStarted("signin")}
-            className="px-5 py-2 rounded-full bg-white/10 border border-white/20 text-white text-sm font-semibold hover:bg-white/20 transition"
-          >
-            Log In
-          </button>
-          <button
-            onClick={() => onGetStarted("signup")}
-            className="px-5 py-2 rounded-full bg-yellow-400 text-indigo-900 text-sm font-bold hover:bg-yellow-300 transition"
-          >
-            Sign Up
-          </button>
+      <nav className="relative z-10 w-full px-6 md:px-10 py-5">
+        <div className="flex items-center justify-between gap-6">
+          {/* Logo — pinned to the very left edge */}
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-2xl">🔱</span>
+            <span className="text-white font-bold text-lg tracking-tight whitespace-nowrap">
+              Neptune Chat
+            </span>
+          </div>
+
+          {/* Center links */}
+          <div className="hidden md:flex items-center gap-8">
+            <a
+              href="#about"
+              className="text-white/70 text-sm font-semibold hover:text-white transition"
+            >
+              About
+            </a>
+            <a
+              href="#how-it-works"
+              className="text-white/70 text-sm font-semibold hover:text-white transition"
+            >
+              How It Works
+            </a>
+            <a
+              href="#faq"
+              className="text-white/70 text-sm font-semibold hover:text-white transition"
+            >
+              FAQ
+            </a>
+          </div>
+
+          {/* Auth buttons */}
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              onClick={() => onGetStarted("signin")}
+              className="px-5 py-2 rounded-full bg-white/10 border border-white/20 text-white text-sm font-semibold hover:bg-white/20 transition"
+            >
+              Log In
+            </button>
+            <button
+              onClick={() => onGetStarted("signup")}
+              className="px-5 py-2 rounded-full bg-yellow-400 text-indigo-900 text-sm font-bold hover:bg-yellow-300 transition"
+            >
+              Sign Up
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -74,14 +101,28 @@ export default function LandingPage({ onGetStarted }) {
           </div>
           <div className="flex-1 aspect-video rounded-xl bg-slate-900/80 flex items-center justify-center">
             <span className="text-white/30 text-sm font-medium">
-              A random Neptune
+              A random neptuner
             </span>
           </div>
         </div>
       </div>
 
+      {/* About */}
+      <section id="about" className="relative z-10 max-w-3xl mx-auto px-6 pb-24 text-center scroll-mt-24">
+        <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
+          About Neptune Chat
+        </h2>
+        <p className="mt-4 text-white/70 text-sm md:text-base leading-relaxed">
+          Neptune Chat was built for one simple reason: campus is full of
+          people you haven't met yet. Instead of another swipe-based app, we
+          made a space where verified students can jump on video or text with
+          someone new in seconds — no profile to build, no matching
+          algorithm, just a real conversation with someone else on campus.
+        </p>
+      </section>
+
       {/* Features */}
-      <section className="relative z-10 max-w-5xl mx-auto px-6 pb-24 grid grid-cols-1 md:grid-cols-3 gap-5">
+      <section id="how-it-works" className="relative z-10 max-w-5xl mx-auto px-6 pb-24 grid grid-cols-1 md:grid-cols-3 gap-5 scroll-mt-24">
         <FeatureCard
           icon="🎓"
           title=".edu verified"
@@ -179,7 +220,7 @@ export default function LandingPage({ onGetStarted }) {
       </section>
 
       {/* FAQ */}
-      <section className="relative z-10 max-w-3xl mx-auto px-6 pb-28">
+      <section id="faq" className="relative z-10 max-w-3xl mx-auto px-6 pb-28 scroll-mt-24">
         <div className="text-center mb-10">
           <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
             Frequently asked questions
@@ -217,7 +258,7 @@ export default function LandingPage({ onGetStarted }) {
       {/* Footer */}
       <footer className="relative z-10 text-center pb-10">
         <p className="text-white/40 text-xs">
-          Neptune Chat is for currently enrolled college students. Be kind.
+          @ The Neptune Way LLC, A Florida Limited Liability Company
         </p>
       </footer>
     </div>

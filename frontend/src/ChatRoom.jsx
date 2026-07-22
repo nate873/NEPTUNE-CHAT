@@ -2,8 +2,16 @@ import { useEffect, useRef, useState } from "react";
 import { socket } from "./socket";
 import { supabase } from "./supabaseClient";
 
+// NOTE: STUN alone often fails on restrictive networks (many college wifi
+// networks block the direct UDP paths STUN relies on). Add a TURN server
+// here for reliable connections — e.g. a free/low-cost TURN provider like
+// Metered, Twilio, or Cloudflare Calls. Example shape:
+// { urls: "turn:your-turn-server.com:3478", username: "user", credential: "pass" }
 const ICE_SERVERS = {
-  iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    // { urls: "turn:your-turn-server.com:3478", username: "USERNAME", credential: "CREDENTIAL" },
+  ],
 };
 
 export default function ChatRoom({ session }) {
@@ -11,6 +19,7 @@ export default function ChatRoom({ session }) {
   const remoteVideoRef = useRef(null);
   const pcRef = useRef(null);
   const localStreamRef = useRef(null);
+  const pendingSignalsRef = useRef([]); // signals that arrive before pc exists
 
   const [status, setStatus] = useState("idle"); // idle | searching | connected
   const [messages, setMessages] = useState([]);
@@ -69,27 +78,7 @@ export default function ChatRoom({ session }) {
     return pc;
   }
 
-  async function handleMatched({ initiator }) {
-    setStatus("connected");
-    setMessages([]);
-
-    const stream = await getLocalStream();
-    const pc = createPeerConnection();
-    pcRef.current = pc;
-
-    stream.getTracks().forEach((track) => pc.addTrack(track, stream));
-
-    if (initiator) {
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      socket.emit("signal", { data: { sdp: pc.localDescription } });
-    }
-  }
-
-  async function handleSignal({ data }) {
-    const pc = pcRef.current;
-    if (!pc) return;
-
+  async function processSignal(pc, data) {
     if (data.sdp) {
       await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
       if (data.sdp.type === "offer") {
@@ -106,6 +95,44 @@ export default function ChatRoom({ session }) {
     }
   }
 
+  async function handleMatched({ initiator }) {
+    setStatus("connected");
+    setMessages([]);
+
+    // Create the peer connection FIRST, synchronously, so incoming signals
+    // are never dropped while we're still waiting on getUserMedia().
+    const pc = createPeerConnection();
+    pcRef.current = pc;
+
+    // Flush any signals that arrived before pc existed.
+    if (pendingSignalsRef.current.length) {
+      const queued = pendingSignalsRef.current;
+      pendingSignalsRef.current = [];
+      for (const data of queued) {
+        await processSignal(pc, data);
+      }
+    }
+
+    const stream = await getLocalStream();
+    stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+
+    if (initiator) {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      socket.emit("signal", { data: { sdp: pc.localDescription } });
+    }
+  }
+
+  async function handleSignal({ data }) {
+    const pc = pcRef.current;
+    if (!pc) {
+      // Peer connection isn't ready yet — buffer it instead of dropping it.
+      pendingSignalsRef.current.push(data);
+      return;
+    }
+    await processSignal(pc, data);
+  }
+
   function handleChatMessage({ text }) {
     setMessages((prev) => [...prev, { text, fromSelf: false }]);
   }
@@ -117,6 +144,7 @@ export default function ChatRoom({ session }) {
       pcRef.current.close();
       pcRef.current = null;
     }
+    pendingSignalsRef.current = [];
     startSearch(); // automatically look for a new match
   }
 
@@ -129,6 +157,7 @@ export default function ChatRoom({ session }) {
       localStreamRef.current.getTracks().forEach((t) => t.stop());
       localStreamRef.current = null;
     }
+    pendingSignalsRef.current = [];
   }
 
   async function startSearch() {
