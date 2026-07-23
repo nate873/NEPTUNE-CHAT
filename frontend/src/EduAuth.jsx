@@ -16,8 +16,8 @@ export default function EduAuth({ onVerified, initialMode = "signin" }) {
   const [resendCooldown, setResendCooldown] = useState(0);
   const cooldownIntervalRef = useRef(null);
 
-  function isEduEmail(value) {
-    return /^[^\s@]+@[^\s@]+\.edu$/i.test(value.trim());
+  function isValidEmail(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(value.trim());
   }
 
   function resetToStart(newMode) {
@@ -65,8 +65,8 @@ export default function EduAuth({ onVerified, initialMode = "signin" }) {
     e.preventDefault();
     setError("");
 
-    if (!isEduEmail(email)) {
-      setError("Please use a valid .edu email address.");
+    if (!isValidEmail(email)) {
+      setError("Please enter a valid email address.");
       return;
     }
 
@@ -98,8 +98,8 @@ export default function EduAuth({ onVerified, initialMode = "signin" }) {
 
     if (resendCooldown > 0) return;
 
-    if (!isEduEmail(email)) {
-      setError("Please use a valid .edu email address.");
+    if (!isValidEmail(email)) {
+      setError("Please enter a valid email address.");
       return;
     }
 
@@ -225,7 +225,7 @@ export default function EduAuth({ onVerified, initialMode = "signin" }) {
           🔱 Neptune Chat
         </h1>
         <p className="text-white/70 text-center text-sm mb-6">
-          College students only — verify your .edu email to continue
+          Verify your email to continue
         </p>
 
         {/* Mode toggle */}
@@ -261,7 +261,7 @@ export default function EduAuth({ onVerified, initialMode = "signin" }) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@university.edu"
+              placeholder="you@email.com"
               className="px-4 py-3 rounded-full bg-white/10 border border-white/20 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-yellow-300"
               required
             />
@@ -293,7 +293,7 @@ export default function EduAuth({ onVerified, initialMode = "signin" }) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@university.edu"
+              placeholder="you@email.com"
               className="px-4 py-3 rounded-full bg-white/10 border border-white/20 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-yellow-300"
               required
             />
