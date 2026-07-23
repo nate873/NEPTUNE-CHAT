@@ -1,15 +1,20 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "./supabaseClient";
+
+const RESEND_COOLDOWN_SECONDS = 45;
 
 export default function EduAuth({ onVerified, initialMode = "signin" }) {
   const [mode, setMode] = useState(initialMode); // signin | signup
-  const [step, setStep] = useState("email"); // email | code | password
+  const [step, setStep] = useState("email"); // email | code | password | name
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const cooldownIntervalRef = useRef(null);
 
   function isEduEmail(value) {
     return /^[^\s@]+@[^\s@]+\.edu$/i.test(value.trim());
@@ -21,8 +26,39 @@ export default function EduAuth({ onVerified, initialMode = "signin" }) {
     setCode("");
     setPassword("");
     setConfirmPassword("");
+    setDisplayName("");
     setError("");
+    stopCooldown();
   }
+
+  function stopCooldown() {
+    if (cooldownIntervalRef.current) {
+      clearInterval(cooldownIntervalRef.current);
+      cooldownIntervalRef.current = null;
+    }
+    setResendCooldown(0);
+  }
+
+  function startCooldown() {
+    setResendCooldown(RESEND_COOLDOWN_SECONDS);
+    if (cooldownIntervalRef.current) clearInterval(cooldownIntervalRef.current);
+    cooldownIntervalRef.current = setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) {
+          clearInterval(cooldownIntervalRef.current);
+          cooldownIntervalRef.current = null;
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (cooldownIntervalRef.current) clearInterval(cooldownIntervalRef.current);
+    };
+  }, []);
 
   // ---- SIGN IN (returning users) ----
   async function handleSignIn(e) {
@@ -50,9 +86,17 @@ export default function EduAuth({ onVerified, initialMode = "signin" }) {
   }
 
   // ---- SIGN UP step 1: send code ----
+  // Note: Supabase silently uses a different email template (confirmation vs.
+  // recovery/magic-link) depending on whether this address already has an
+  // account, without telling the client which one fired. Repeated clicks on
+  // this button are the most common way to accidentally flip between the
+  // two, so we throttle it client-side with a cooldown instead of relying on
+  // people to naturally wait between attempts.
   async function sendCode(e) {
     e.preventDefault();
     setError("");
+
+    if (resendCooldown > 0) return;
 
     if (!isEduEmail(email)) {
       setError("Please use a valid .edu email address.");
@@ -70,7 +114,25 @@ export default function EduAuth({ onVerified, initialMode = "signin" }) {
       setError(error.message);
       return;
     }
+    startCooldown();
     setStep("code");
+  }
+
+  async function resendCode() {
+    if (resendCooldown > 0 || loading) return;
+    setError("");
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: { shouldCreateUser: true },
+    });
+    setLoading(false);
+
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    startCooldown();
   }
 
   // ---- SIGN UP step 2: verify code ----
@@ -92,6 +154,7 @@ export default function EduAuth({ onVerified, initialMode = "signin" }) {
       return;
     }
 
+    stopCooldown();
     // Verified — now have them set a password for future logins
     setStep("password");
   }
@@ -111,7 +174,7 @@ export default function EduAuth({ onVerified, initialMode = "signin" }) {
     }
 
     setLoading(true);
-    const { data, error } = await supabase.auth.updateUser({ password });
+    const { error } = await supabase.auth.updateUser({ password });
     setLoading(false);
 
     if (error) {
@@ -119,7 +182,38 @@ export default function EduAuth({ onVerified, initialMode = "signin" }) {
       return;
     }
 
-    // Fetch the current session and hand off to the app
+    // Password set — now have them pick a display name before entering
+    setStep("name");
+  }
+
+  // ---- SIGN UP step 4: choose a display name ----
+  async function setDisplayNameAndEnter(e) {
+    e.preventDefault();
+    setError("");
+
+    const trimmed = displayName.trim();
+    if (trimmed.length < 2 || trimmed.length > 20) {
+      setError("Name must be between 2 and 20 characters.");
+      return;
+    }
+    if (!/^[a-zA-Z0-9 _-]+$/.test(trimmed)) {
+      setError("Name can only contain letters, numbers, spaces, - and _.");
+      return;
+    }
+
+    setLoading(true);
+    // Storing this under `display_name` in user_metadata is what makes it
+    // show up in the Supabase dashboard's Auth > Users "Display name" column.
+    const { error } = await supabase.auth.updateUser({
+      data: { display_name: trimmed },
+    });
+    setLoading(false);
+
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
     const { data: sessionData } = await supabase.auth.getSession();
     onVerified(sessionData.session);
   }
@@ -213,6 +307,10 @@ export default function EduAuth({ onVerified, initialMode = "signin" }) {
             >
               {loading ? "Sending code..." : "Send Verification Code"}
             </button>
+            <p className="text-white/40 text-xs text-center">
+              Already have an account? Use the Log In tab instead — resending
+              the code to an existing account can behave differently.
+            </p>
           </form>
         )}
 
@@ -220,7 +318,7 @@ export default function EduAuth({ onVerified, initialMode = "signin" }) {
         {mode === "signup" && step === "code" && (
           <form onSubmit={verifyCode} className="flex flex-col gap-3">
             <p className="text-white/70 text-sm text-center">
-              Enter the verification code sent to {email}
+              Enter the code sent to {email}
             </p>
             <input
               type="text"
@@ -230,6 +328,7 @@ export default function EduAuth({ onVerified, initialMode = "signin" }) {
               placeholder="Enter code"
               className="px-4 py-3 rounded-full bg-white/10 border border-white/20 text-white placeholder-white/50 text-center tracking-widest text-lg focus:outline-none focus:ring-2 focus:ring-yellow-300"
               required
+              autoFocus
             />
             {error && (
               <p className="text-rose-300 text-sm text-center">{error}</p>
@@ -241,12 +340,30 @@ export default function EduAuth({ onVerified, initialMode = "signin" }) {
             >
               {loading ? "Verifying..." : "Verify Code"}
             </button>
+
+            <p className="text-white/40 text-xs text-center leading-relaxed">
+              Didn't get it? Check spam/junk first — university mail systems
+              often filter new senders.
+            </p>
+
+            <button
+              type="button"
+              onClick={resendCode}
+              disabled={resendCooldown > 0 || loading}
+              className="text-white/70 text-sm hover:text-white transition disabled:opacity-40 disabled:hover:text-white/70"
+            >
+              {resendCooldown > 0
+                ? `Resend code (${resendCooldown}s)`
+                : "Resend code"}
+            </button>
+
             <button
               type="button"
               onClick={() => {
                 setStep("email");
                 setCode("");
                 setError("");
+                stopCooldown();
               }}
               className="text-white/60 text-sm hover:text-white transition"
             >
@@ -277,6 +394,38 @@ export default function EduAuth({ onVerified, initialMode = "signin" }) {
               className="px-4 py-3 rounded-full bg-white/10 border border-white/20 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-yellow-300"
               required
             />
+            {error && (
+              <p className="text-rose-300 text-sm text-center">{error}</p>
+            )}
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-6 py-3 bg-yellow-400 text-indigo-900 font-bold rounded-full shadow-lg hover:bg-yellow-300 transition disabled:opacity-60"
+            >
+              {loading ? "Saving..." : "Continue"}
+            </button>
+          </form>
+        )}
+
+        {/* ---- SIGN UP: choose display name ---- */}
+        {mode === "signup" && step === "name" && (
+          <form onSubmit={setDisplayNameAndEnter} className="flex flex-col gap-3">
+            <p className="text-white/70 text-sm text-center">
+              Last step! What should people call you?
+            </p>
+            <input
+              type="text"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Choose a name"
+              maxLength={20}
+              className="px-4 py-3 rounded-full bg-white/10 border border-white/20 text-white placeholder-white/50 text-center focus:outline-none focus:ring-2 focus:ring-yellow-300"
+              required
+              autoFocus
+            />
+            <p className="text-white/40 text-xs text-center">
+              2–20 characters. You can change this later.
+            </p>
             {error && (
               <p className="text-rose-300 text-sm text-center">{error}</p>
             )}

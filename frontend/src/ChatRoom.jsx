@@ -27,7 +27,8 @@ export default function ChatRoom({ session }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const userEmail = session?.user?.email || "";
-  const avatarLetter = userEmail.charAt(0).toUpperCase() || "?";
+  const displayName = session?.user?.user_metadata?.display_name || userEmail;
+  const avatarLetter = displayName.charAt(0).toUpperCase() || "?";
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -215,7 +216,7 @@ export default function ChatRoom({ session }) {
                 {avatarLetter}
               </span>
               <span className="text-white text-sm max-w-[160px] truncate">
-                {userEmail}
+                {displayName}
               </span>
             </button>
 
@@ -223,7 +224,12 @@ export default function ChatRoom({ session }) {
               <div className="absolute right-0 mt-2 w-52 bg-slate-900 border border-white/10 rounded-xl shadow-xl overflow-hidden z-10">
                 <div className="px-4 py-3 border-b border-white/10">
                   <p className="text-white/50 text-xs">Signed in as</p>
-                  <p className="text-white text-sm truncate">{userEmail}</p>
+                  <p className="text-white text-sm truncate">{displayName}</p>
+                  {displayName !== userEmail && (
+                    <p className="text-white/40 text-xs truncate mt-0.5">
+                      {userEmail}
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={handleSignOut}
