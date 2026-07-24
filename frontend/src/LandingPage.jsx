@@ -2,7 +2,10 @@ import { useState } from "react";
 
 export default function LandingPage({ onGetStarted }) {
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-indigo-600 via-violet-600 to-blue-600 overflow-hidden relative">
+    <div
+      className="min-h-screen w-full bg-gradient-to-br from-indigo-600 via-violet-600 to-blue-600 overflow-hidden relative"
+      style={{ zoom: 1.6 }}
+    >
       <style>{`
         @keyframes marquee {
           from { transform: translateX(0); }
