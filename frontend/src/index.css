@@ -1,5 +1,5 @@
 @import "tailwindcss";
 
-html {
-  font-size: 112%;
+body {
+  zoom: 1.2;
 }
