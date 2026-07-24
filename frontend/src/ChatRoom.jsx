@@ -61,13 +61,23 @@ export default function ChatRoom({ session }) {
   const [input, setInput] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // "all" or a UNIVERSITIES[].id — which pool of students to match against.
-  const [universityFilter, setUniversityFilter] = useState("all");
-  const [filterOpen, setFilterOpen] = useState(false);
-
   const userEmail = session?.user?.email || "";
   const displayName = session?.user?.user_metadata?.display_name || userEmail;
   const avatarLetter = displayName.charAt(0).toUpperCase() || "?";
+
+  // Set at sign-up (EduAuth.jsx). Older accounts created before that step
+  // existed simply won't have this, and the badge/filter fall back to "all".
+  const userUniversityId = session?.user?.user_metadata?.university || null;
+  const userUniversity = userUniversityId
+    ? UNIVERSITIES.find((u) => u.id === userUniversityId) || null
+    : null;
+
+  // "all" or a UNIVERSITIES[].id — which pool of students to match against.
+  // Defaults to the student's own school if they set one at sign-up.
+  const [universityFilter, setUniversityFilter] = useState(
+    userUniversityId || "all"
+  );
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const selectedUniversity =
     universityFilter === "all"
@@ -250,6 +260,17 @@ export default function ChatRoom({ session }) {
             <span className="flex items-center gap-2 text-sm text-white font-medium">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               Connected
+            </span>
+          )}
+
+          {userUniversity && (
+            <span className="hidden sm:flex items-center gap-1.5 bg-white/10 border border-white/20 rounded-full pl-1.5 pr-3 py-1">
+              <span className="w-5 h-5 rounded-full bg-white flex items-center justify-center overflow-hidden shrink-0">
+                <UniLogo school={userUniversity} size={14} />
+              </span>
+              <span className="text-white/80 text-xs font-semibold">
+                {userUniversity.name}
+              </span>
             </span>
           )}
 
