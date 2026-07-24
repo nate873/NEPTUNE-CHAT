@@ -3,13 +3,30 @@ import { supabase } from "./supabaseClient";
 
 const RESEND_COOLDOWN_SECONDS = 45;
 
+// Same school set used across the landing page and chat room — keep these
+// three lists in sync if you add/remove a university.
+const UNIVERSITIES = [
+  { id: "ucf", name: "UCF", logo: "/logos/ucf.png" },
+  { id: "msu", name: "Michigan State University", logo: "/logos/msu.png" },
+  { id: "asu", name: "ASU", logo: "/logos/asu.png" },
+  { id: "uf", name: "UF", logo: "/logos/uf.png" },
+  { id: "fsu", name: "FSU", logo: "/logos/fsu.png" },
+  { id: "fau", name: "FAU", logo: "/logos/fau.png" },
+  { id: "uga", name: "University of Georgia", logo: "/logos/uga.png" },
+  { id: "osu", name: "Ohio State", logo: "/logos/osu.png" },
+  { id: "umiami", name: "University of Miami", logo: "/logos/umiami.png" },
+  { id: "ucla", name: "UCLA", logo: "/logos/ucla.png" },
+  { id: "usc", name: "USC", logo: "/logos/usc.png" },
+];
+
 export default function EduAuth({ onVerified, initialMode = "signin" }) {
   const [mode, setMode] = useState(initialMode); // signin | signup
-  const [step, setStep] = useState("email"); // email | code | password | name
+  const [step, setStep] = useState("email"); // email | code | password | university | name
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [university, setUniversity] = useState(""); // UNIVERSITIES[].id
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,6 +43,7 @@ export default function EduAuth({ onVerified, initialMode = "signin" }) {
     setCode("");
     setPassword("");
     setConfirmPassword("");
+    setUniversity("");
     setDisplayName("");
     setError("");
     stopCooldown();
@@ -182,11 +200,40 @@ export default function EduAuth({ onVerified, initialMode = "signin" }) {
       return;
     }
 
-    // Password set — now have them pick a display name before entering
+    // Password set — now have them pick their university
+    setStep("university");
+  }
+
+  // ---- SIGN UP step 4: pick a university ----
+  async function setUniversityAndContinue(e) {
+    e.preventDefault();
+    setError("");
+
+    if (!university) {
+      setError("Please select your university.");
+      return;
+    }
+
+    const school = UNIVERSITIES.find((u) => u.id === university);
+
+    setLoading(true);
+    // Stored so the match filter (and any future "students at your school"
+    // features) can read it straight off the user's session/profile.
+    const { error } = await supabase.auth.updateUser({
+      data: { university: school.id, university_name: school.name },
+    });
+    setLoading(false);
+
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
+    // University set — now have them pick a display name before entering
     setStep("name");
   }
 
-  // ---- SIGN UP step 4: choose a display name ----
+  // ---- SIGN UP step 5: choose a display name ----
   async function setDisplayNameAndEnter(e) {
     e.preventDefault();
     setError("");
@@ -219,7 +266,7 @@ export default function EduAuth({ onVerified, initialMode = "signin" }) {
   }
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-indigo-600 via-violet-600 to-blue-600 flex items-center justify-center px-4">
+    <div className="min-h-screen w-full bg-gradient-to-br from-indigo-600 via-violet-600 to-blue-600 flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-8 shadow-xl">
         <h1 className="text-2xl font-bold text-white text-center mb-1">
           🔱 Neptune Chat
@@ -407,6 +454,55 @@ export default function EduAuth({ onVerified, initialMode = "signin" }) {
           </form>
         )}
 
+        {/* ---- SIGN UP: pick university ---- */}
+        {mode === "signup" && step === "university" && (
+          <form onSubmit={setUniversityAndContinue} className="flex flex-col gap-3">
+            <p className="text-white/70 text-sm text-center">
+              Which school do you go to?
+            </p>
+
+            <div className="grid grid-cols-3 gap-2.5 max-h-72 overflow-y-auto pr-1">
+              {UNIVERSITIES.map((school) => {
+                const selected = university === school.id;
+                return (
+                  <button
+                    key={school.id}
+                    type="button"
+                    onClick={() => setUniversity(school.id)}
+                    className={`flex flex-col items-center justify-center gap-1.5 px-2 py-3 rounded-xl border transition-all duration-150 ${
+                      selected
+                        ? "bg-yellow-400/15 border-yellow-300 shadow-[0_0_0_1px_rgba(253,224,71,0.5)]"
+                        : "bg-white/5 border-white/15 hover:bg-white/10"
+                    }`}
+                  >
+                    <span className="w-9 h-9 rounded-full bg-white flex items-center justify-center overflow-hidden shrink-0">
+                      <UniLogo school={school} size={24} />
+                    </span>
+                    <span
+                      className={`text-[11px] font-semibold text-center leading-tight ${
+                        selected ? "text-yellow-300" : "text-white/80"
+                      }`}
+                    >
+                      {school.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {error && (
+              <p className="text-rose-300 text-sm text-center">{error}</p>
+            )}
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-6 py-3 bg-yellow-400 text-indigo-900 font-bold rounded-full shadow-lg hover:bg-yellow-300 transition disabled:opacity-60"
+            >
+              {loading ? "Saving..." : "Continue"}
+            </button>
+          </form>
+        )}
+
         {/* ---- SIGN UP: choose display name ---- */}
         {mode === "signup" && step === "name" && (
           <form onSubmit={setDisplayNameAndEnter} className="flex flex-col gap-3">
@@ -440,5 +536,32 @@ export default function EduAuth({ onVerified, initialMode = "signin" }) {
         )}
       </div>
     </div>
+  );
+}
+
+// Renders a school logo, falling back to its initial if the image fails to
+// load (e.g. a filename typo or a file not yet added to public/logos).
+function UniLogo({ school, size = 20 }) {
+  const [failed, setFailed] = useState(false);
+
+  if (failed) {
+    return (
+      <span
+        className="text-slate-700 font-bold"
+        style={{ fontSize: Math.max(9, size * 0.45) }}
+      >
+        {school.name.charAt(0)}
+      </span>
+    );
+  }
+
+  return (
+    <img
+      src={school.logo}
+      alt={school.name}
+      onError={() => setFailed(true)}
+      style={{ width: size, height: size }}
+      className="object-contain"
+    />
   );
 }
