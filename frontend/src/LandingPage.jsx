@@ -4,7 +4,7 @@ export default function LandingPage({ onGetStarted }) {
   return (
     <div
       className="min-h-screen w-full bg-gradient-to-br from-indigo-600 via-violet-600 to-blue-600 overflow-hidden relative"
-      style={{ zoom: 1.1}}
+      style={{ zoom: 1.2}}
     >
       <style>{`
         @keyframes marquee {
