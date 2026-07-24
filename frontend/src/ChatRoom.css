@@ -13,7 +13,7 @@
 
 .searching-text {
   position: relative;
-  color: #6b7280;
+  color: #e2e8f0;
   font-weight: 500;
 }
 
@@ -39,7 +39,7 @@
 
 .start-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 14px -4px rgba(37, 99, 235, 0.5);
+  box-shadow: 0 6px 14px -4px rgba(250, 204, 21, 0.5);
 }
 
 .next-btn {
@@ -56,17 +56,17 @@
 }
 
 .chat-bubble-self {
-  color: #2563eb;
+  color: #fde047;
   animation: fadeIn 0.2s ease;
 }
 
 .chat-bubble-other {
-  color: #1f2937;
+  color: #ffffff;
   animation: fadeIn 0.2s ease;
 }
 
 .chat-bubble-system {
-  color: #9ca3af;
+  color: #cbd5e1;
   font-style: italic;
   font-size: 0.85rem;
 }

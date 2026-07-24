@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { socket } from "./socket";
 import { supabase } from "./supabaseClient";
+import "./ChatRoom.css";
 
 // TURN credentials from Metered (dashboard.metered.ca) — needed because
 // STUN alone fails on restrictive networks / cellular NAT (this is why
@@ -248,7 +249,7 @@ export default function ChatRoom({ session }) {
   }
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-indigo-600 via-violet-600 to-blue-600 flex flex-col">
+    <div className="chatroom-container min-h-screen w-full bg-gradient-to-br from-indigo-600 via-violet-600 to-blue-600 flex flex-col">
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-4">
         <h1 className="text-2xl font-bold text-white tracking-tight drop-shadow">
@@ -312,7 +313,7 @@ export default function ChatRoom({ session }) {
 
       {/* Main video area — big split screen like OmeTV */}
       <main className="flex-1 flex flex-col lg:flex-row gap-4 px-6 pb-4">
-        <div className="relative flex-1 rounded-2xl overflow-hidden shadow-xl bg-slate-900 min-h-[45vh] lg:min-h-[70vh]">
+        <div className="video-box relative flex-1 rounded-2xl overflow-hidden shadow-xl bg-slate-900 min-h-[45vh] lg:min-h-[70vh]">
           <video
             ref={localVideoRef}
             autoPlay
@@ -325,7 +326,7 @@ export default function ChatRoom({ session }) {
           </span>
         </div>
 
-        <div className="relative flex-1 rounded-2xl overflow-hidden shadow-xl bg-slate-900 min-h-[45vh] lg:min-h-[70vh] flex items-center justify-center">
+        <div className="video-box relative flex-1 rounded-2xl overflow-hidden shadow-xl bg-slate-900 min-h-[45vh] lg:min-h-[70vh] flex items-center justify-center">
           <video
             ref={remoteVideoRef}
             autoPlay
@@ -336,8 +337,7 @@ export default function ChatRoom({ session }) {
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-900/95">
               {status === "searching" ? (
                 <>
-                  <span className="w-3 h-3 rounded-full bg-violet-400 animate-ping" />
-                  <p className="text-slate-300 font-medium">
+                  <p className="searching-text">
                     Looking for someone to chat with...
                   </p>
                   <p className="text-slate-500 text-xs">
@@ -356,21 +356,8 @@ export default function ChatRoom({ session }) {
         </div>
       </main>
 
-      {/* University filter — pick who you want to be matched with */}
-      {status === "idle" && (
-        <div className="flex justify-center pb-3 px-6">
-          <UniversityFilterPicker
-            open={filterOpen}
-            setOpen={setFilterOpen}
-            selected={universityFilter}
-            onSelect={setUniversityFilter}
-            selectedUniversity={selectedUniversity}
-          />
-        </div>
-      )}
-
       {/* Controls */}
-      <div className="flex flex-col items-center gap-2 pb-4">
+      <div className="flex flex-col items-center gap-3 pb-4">
         {status !== "idle" && (
           <span className="text-white/50 text-xs font-medium">
             {selectedUniversity ? (
@@ -385,12 +372,21 @@ export default function ChatRoom({ session }) {
         )}
 
         {status === "idle" && (
-          <button
-            onClick={startSearch}
-            className="px-8 py-3 bg-yellow-400 text-indigo-900 font-bold rounded-full shadow-lg transition-all duration-200 hover:bg-yellow-300 hover:scale-105 hover:shadow-yellow-300/50 active:scale-95"
-          >
-            Start Chat
-          </button>
+          <div className="flex items-center gap-3">
+            <UniversityFilterPicker
+              open={filterOpen}
+              setOpen={setFilterOpen}
+              selected={universityFilter}
+              onSelect={setUniversityFilter}
+              selectedUniversity={selectedUniversity}
+            />
+            <button
+              onClick={startSearch}
+              className="start-btn px-8 py-3 bg-yellow-400 text-indigo-900 font-bold rounded-full shadow-lg"
+            >
+              Start Chat
+            </button>
+          </div>
         )}
         {status === "searching" && (
           <div className="flex gap-3">
@@ -412,7 +408,7 @@ export default function ChatRoom({ session }) {
           <div className="flex gap-3">
             <button
               onClick={nextOrLeave}
-              className="px-8 py-3 bg-rose-500 text-white font-bold rounded-full shadow-lg transition-all duration-200 hover:bg-rose-400 hover:scale-105 hover:shadow-rose-400/50 active:scale-95"
+              className="next-btn px-8 py-3 bg-rose-500 text-white font-bold rounded-full shadow-lg"
             >
               Next ⏭
             </button>
@@ -428,7 +424,7 @@ export default function ChatRoom({ session }) {
 
       {/* Chat log + input */}
       <div className="px-6 pb-6 max-w-4xl w-full mx-auto">
-        <div className="w-full border border-white/20 rounded-xl p-3 h-40 overflow-y-auto bg-white/10 backdrop-blur shadow-inner">
+        <div className="chat-log w-full border border-white/20 rounded-xl p-3 h-40 overflow-y-auto bg-white/10 backdrop-blur shadow-inner">
           {messages.length === 0 && (
             <p className="text-white/50 text-sm italic">
               Messages will show up here...
@@ -439,10 +435,10 @@ export default function ChatRoom({ session }) {
               key={i}
               className={
                 m.system
-                  ? "text-white/50 italic text-sm"
+                  ? "chat-bubble-system"
                   : m.fromSelf
-                  ? "text-right text-yellow-300 font-medium"
-                  : "text-left text-white"
+                  ? "text-right chat-bubble-self font-medium"
+                  : "text-left chat-bubble-other"
               }
             >
               {m.fromSelf && !m.system ? `${displayName}: ` : ""}
