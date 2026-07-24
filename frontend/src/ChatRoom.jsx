@@ -33,6 +33,22 @@ const ICE_SERVERS = {
   ],
 };
 
+// Same logo set used on the landing page conveyor belt — add/remove schools
+// here and the filter picker below updates automatically.
+const UNIVERSITIES = [
+  { id: "ucf", name: "UCF", logo: "/logos/ucf.png" },
+  { id: "msu", name: "Michigan State University", logo: "/logos/msu.png" },
+  { id: "asu", name: "ASU", logo: "/logos/asu.png" },
+  { id: "uf", name: "UF", logo: "/logos/uf.png" },
+  { id: "fsu", name: "FSU", logo: "/logos/fsu.png" },
+  { id: "fau", name: "FAU", logo: "/logos/fau.png" },
+  { id: "uga", name: "University of Georgia", logo: "/logos/uga.png" },
+  { id: "osu", name: "Ohio State", logo: "/logos/osu.png" },
+  { id: "umiami", name: "University of Miami", logo: "/logos/umiami.png" },
+  { id: "ucla", name: "UCLA", logo: "/logos/ucla.png" },
+  { id: "usc", name: "USC", logo: "/logos/usc.png" },
+];
+
 export default function ChatRoom({ session }) {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -45,9 +61,18 @@ export default function ChatRoom({ session }) {
   const [input, setInput] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // "all" or a UNIVERSITIES[].id — which pool of students to match against.
+  const [universityFilter, setUniversityFilter] = useState("all");
+  const [filterOpen, setFilterOpen] = useState(false);
+
   const userEmail = session?.user?.email || "";
   const displayName = session?.user?.user_metadata?.display_name || userEmail;
   const avatarLetter = displayName.charAt(0).toUpperCase() || "?";
+
+  const selectedUniversity =
+    universityFilter === "all"
+      ? null
+      : UNIVERSITIES.find((u) => u.id === universityFilter) || null;
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -184,7 +209,9 @@ export default function ChatRoom({ session }) {
     await getLocalStream();
     setStatus("searching");
     setMessages([]);
-    socket.emit("find-match");
+    // Server should use `university` to only pair sockets in the same pool,
+    // or ignore it / pair from everyone when the value is "all".
+    socket.emit("find-match", { university: universityFilter });
   }
 
   function nextOrLeave() {
@@ -272,8 +299,8 @@ export default function ChatRoom({ session }) {
             playsInline
             className="w-full h-full object-cover"
           />
-          <span className="absolute bottom-3 left-3 px-3 py-1 rounded-full bg-black/50 text-white text-xs font-medium">
-            You
+          <span className="absolute bottom-3 left-3 px-3 py-1 rounded-full bg-black/50 text-white text-xs font-medium max-w-[70%] truncate">
+            {displayName || "You"}
           </span>
         </div>
 
@@ -292,6 +319,11 @@ export default function ChatRoom({ session }) {
                   <p className="text-slate-300 font-medium">
                     Looking for someone to chat with...
                   </p>
+                  <p className="text-slate-500 text-xs">
+                    {selectedUniversity
+                      ? `Matching within ${selectedUniversity.name}`
+                      : "Matching across all universities"}
+                  </p>
                 </>
               ) : (
                 <p className="text-slate-400 font-medium">
@@ -303,12 +335,38 @@ export default function ChatRoom({ session }) {
         </div>
       </main>
 
+      {/* University filter — pick who you want to be matched with */}
+      {status === "idle" && (
+        <div className="flex justify-center pb-3 px-6">
+          <UniversityFilterPicker
+            open={filterOpen}
+            setOpen={setFilterOpen}
+            selected={universityFilter}
+            onSelect={setUniversityFilter}
+            selectedUniversity={selectedUniversity}
+          />
+        </div>
+      )}
+
       {/* Controls */}
-      <div className="flex justify-center pb-4">
+      <div className="flex flex-col items-center gap-2 pb-4">
+        {status !== "idle" && (
+          <span className="text-white/50 text-xs font-medium">
+            {selectedUniversity ? (
+              <span className="inline-flex items-center gap-1.5">
+                <UniLogo school={selectedUniversity} size={16} />
+                Matching with {selectedUniversity.name}
+              </span>
+            ) : (
+              "Matching with all universities"
+            )}
+          </span>
+        )}
+
         {status === "idle" && (
           <button
             onClick={startSearch}
-            className="px-8 py-3 bg-yellow-400 text-indigo-900 font-bold rounded-full shadow-lg hover:bg-yellow-300 hover:shadow-yellow-300/50 transition"
+            className="px-8 py-3 bg-yellow-400 text-indigo-900 font-bold rounded-full shadow-lg transition-all duration-200 hover:bg-yellow-300 hover:scale-105 hover:shadow-yellow-300/50 active:scale-95"
           >
             Start Chat
           </button>
@@ -323,7 +381,7 @@ export default function ChatRoom({ session }) {
             </button>
             <button
               onClick={stopChat}
-              className="px-8 py-3 bg-white/10 border border-white/40 text-white font-semibold rounded-full hover:bg-white/20 transition"
+              className="px-8 py-3 bg-white/10 border border-white/40 text-white font-semibold rounded-full transition-all duration-200 hover:bg-white/20 hover:scale-105 active:scale-95"
             >
               Stop
             </button>
@@ -333,13 +391,13 @@ export default function ChatRoom({ session }) {
           <div className="flex gap-3">
             <button
               onClick={nextOrLeave}
-              className="px-8 py-3 bg-rose-500 text-white font-bold rounded-full shadow-lg hover:bg-rose-400 hover:shadow-rose-400/50 transition"
+              className="px-8 py-3 bg-rose-500 text-white font-bold rounded-full shadow-lg transition-all duration-200 hover:bg-rose-400 hover:scale-105 hover:shadow-rose-400/50 active:scale-95"
             >
               Next ⏭
             </button>
             <button
               onClick={stopChat}
-              className="px-8 py-3 bg-white/10 border border-white/40 text-white font-semibold rounded-full hover:bg-white/20 transition"
+              className="px-8 py-3 bg-white/10 border border-white/40 text-white font-semibold rounded-full transition-all duration-200 hover:bg-white/20 hover:scale-105 active:scale-95"
             >
               Stop
             </button>
@@ -366,6 +424,7 @@ export default function ChatRoom({ session }) {
                   : "text-left text-white"
               }
             >
+              {m.fromSelf && !m.system ? `${displayName}: ` : ""}
               {m.text}
             </div>
           ))}
@@ -381,12 +440,136 @@ export default function ChatRoom({ session }) {
           />
           <button
             onClick={sendMessage}
-            className="px-6 py-2 bg-yellow-400 text-indigo-900 font-bold rounded-full hover:bg-yellow-300 transition"
+            className="px-6 py-2 bg-yellow-400 text-indigo-900 font-bold rounded-full transition-all duration-200 hover:bg-yellow-300 hover:scale-105 active:scale-95"
           >
             Send
           </button>
         </div>
       </div>
     </div>
+  );
+}
+
+// Dropdown that lets the user pick "All Universities" or one school to
+// match within. Uses the same logo files as the landing page belt.
+function UniversityFilterPicker({ open, setOpen, selected, onSelect, selectedUniversity }) {
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full pl-2 pr-4 py-1.5 transition-all duration-200"
+      >
+        {selectedUniversity ? (
+          <>
+            <span className="w-6 h-6 rounded-full bg-white flex items-center justify-center overflow-hidden shrink-0">
+              <UniLogo school={selectedUniversity} size={16} />
+            </span>
+            <span className="text-white text-sm font-medium">
+              {selectedUniversity.name}
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs shrink-0">
+              🌐
+            </span>
+            <span className="text-white text-sm font-medium">
+              All Universities
+            </span>
+          </>
+        )}
+        <span
+          className={`text-white/60 text-xs transition-transform duration-200 ${
+            open ? "rotate-180" : ""
+          }`}
+        >
+          ▾
+        </span>
+      </button>
+
+      {open && (
+        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-72 bg-slate-900 border border-white/10 rounded-xl shadow-xl overflow-hidden z-20">
+          <div className="px-4 py-2.5 border-b border-white/10">
+            <p className="text-white/50 text-xs font-semibold uppercase tracking-wide">
+              Match with
+            </p>
+          </div>
+
+          <div className="max-h-72 overflow-y-auto">
+            <button
+              onClick={() => {
+                onSelect("all");
+                setOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors duration-150 ${
+                selected === "all" ? "bg-yellow-400/10" : "hover:bg-white/5"
+              }`}
+            >
+              <span className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-sm shrink-0">
+                🌐
+              </span>
+              <span
+                className={`text-sm font-medium ${
+                  selected === "all" ? "text-yellow-300" : "text-white"
+                }`}
+              >
+                All Universities
+              </span>
+            </button>
+
+            {UNIVERSITIES.map((school) => (
+              <button
+                key={school.id}
+                onClick={() => {
+                  onSelect(school.id);
+                  setOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors duration-150 ${
+                  selected === school.id ? "bg-yellow-400/10" : "hover:bg-white/5"
+                }`}
+              >
+                <span className="w-7 h-7 rounded-full bg-white flex items-center justify-center overflow-hidden shrink-0">
+                  <UniLogo school={school} size={18} />
+                </span>
+                <span
+                  className={`text-sm font-medium truncate ${
+                    selected === school.id ? "text-yellow-300" : "text-white"
+                  }`}
+                >
+                  {school.name}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Renders a school logo, falling back to its initials if the image fails
+// to load (e.g. a filename typo or a file not yet added to public/logos).
+function UniLogo({ school, size = 20 }) {
+  const [failed, setFailed] = useState(false);
+
+  if (failed) {
+    return (
+      <span
+        className="text-slate-700 font-bold"
+        style={{ fontSize: Math.max(9, size * 0.45) }}
+      >
+        {school.name.charAt(0)}
+      </span>
+    );
+  }
+
+  return (
+    <img
+      src={school.logo}
+      alt={school.name}
+      onError={() => setFailed(true)}
+      style={{ width: size, height: size }}
+      className="object-contain"
+    />
   );
 }
