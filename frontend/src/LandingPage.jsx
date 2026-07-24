@@ -3,6 +3,13 @@ import { useState } from "react";
 export default function LandingPage({ onGetStarted }) {
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-indigo-600 via-violet-600 to-blue-600 overflow-hidden relative">
+      <style>{`
+        @keyframes marquee {
+          from { transform: translateX(0); }
+          to { transform: translateX(-50%); }
+        }
+      `}</style>
+
       {/* Ambient background orbs */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-yellow-300/20 blur-3xl" />
@@ -11,7 +18,7 @@ export default function LandingPage({ onGetStarted }) {
       </div>
 
       {/* Nav */}
-      <nav className="relative z-10 w-full px-6 md:px-10 py-5">
+      <nav className="relative z-10 w-full px-6 md:px-10 py-4">
         <div className="flex items-center justify-between gap-6">
           {/* Logo — pinned to the very left edge */}
           <div className="flex items-center gap-2 shrink-0">
@@ -47,13 +54,13 @@ export default function LandingPage({ onGetStarted }) {
           <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={() => onGetStarted("signin")}
-              className="px-5 py-2 rounded-full bg-white/10 border border-white/20 text-white text-sm font-semibold hover:bg-white/20 transition"
+              className="px-5 py-2 rounded-full bg-white/10 border border-white/20 text-white text-sm font-semibold transition-all duration-200 hover:bg-white/20 hover:scale-105 active:scale-95"
             >
               Log In
             </button>
             <button
               onClick={() => onGetStarted("signup")}
-              className="px-5 py-2 rounded-full bg-yellow-400 text-indigo-900 text-sm font-bold hover:bg-yellow-300 transition"
+              className="px-5 py-2 rounded-full bg-yellow-400 text-indigo-900 text-sm font-bold shadow-md transition-all duration-200 hover:bg-yellow-300 hover:scale-105 hover:shadow-yellow-300/50 hover:shadow-lg active:scale-95"
             >
               Sign Up
             </button>
@@ -62,39 +69,61 @@ export default function LandingPage({ onGetStarted }) {
       </nav>
 
       {/* Hero */}
-      <header className="relative z-10 max-w-4xl mx-auto px-6 pt-14 pb-20 text-center">
-        <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/20 text-white/80 text-xs font-semibold tracking-wide uppercase mb-6">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          .edu verified — college students only
-        </span>
+      <header className="relative z-10 max-w-3xl mx-auto px-6 pt-8 pb-12 text-center">
+        <div className="inline-flex items-center gap-2.5 pl-2 pr-4 py-1.5 rounded-full bg-white/10 border border-white/25 backdrop-blur mb-5 shadow-[0_0_24px_-4px_rgba(52,211,153,0.35)]">
+          <span className="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-400/25 ring-1 ring-emerald-300/40">
+            <svg
+              viewBox="0 0 20 20"
+              fill="none"
+              className="w-3 h-3 text-emerald-300"
+            >
+              <path
+                d="M4 10.5l3.5 3.5L16 5"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+          <span className="text-white text-xs font-bold tracking-wide uppercase">
+            .edu verified
+          </span>
+          <span className="w-1 h-1 rounded-full bg-white/30" />
+          <span className="text-white/60 text-xs font-medium tracking-wide">
+            college students only
+          </span>
+        </div>
 
-        <h1 className="text-4xl md:text-6xl font-extrabold text-white leading-[1.05] tracking-tight">
+        <h1 className="text-5xl md:text-7xl font-extrabold text-white leading-[1.03] tracking-tight">
           Meet someone new
           <br />
           on campus, right now.
         </h1>
 
-        <p className="mt-6 text-lg text-white/70 max-w-xl mx-auto">
+        <p className="mt-6 text-lg md:text-xl text-white/70 max-w-xl mx-auto">
           Neptune Chat pairs you with a random verified college student for
           live video and text — no profiles, no swiping, just a real
           conversation.
         </p>
 
-        <div className="mt-9 flex flex-col sm:flex-row items-center justify-center gap-3">
+        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
           <button
             onClick={() => onGetStarted("signup")}
-            className="px-8 py-3.5 bg-yellow-400 text-indigo-900 font-bold rounded-full shadow-lg hover:bg-yellow-300 hover:shadow-yellow-300/50 transition text-base"
+            className="group px-8 py-3.5 bg-yellow-400 text-indigo-900 font-bold rounded-full shadow-lg transition-all duration-200 hover:bg-yellow-300 hover:scale-105 hover:shadow-yellow-300/60 hover:shadow-xl active:scale-95 text-base"
           >
-            Start Chatting →
+            <span className="inline-flex items-center gap-2">
+              Start Chatting
+              <span className="inline-block transition-transform duration-200 group-hover:translate-x-1">
+                →
+              </span>
+            </span>
           </button>
-          <span className="text-white/50 text-sm">
-            Free · Verify with your .edu email
-          </span>
         </div>
       </header>
 
       {/* Preview mock — stand-in for the real video panels */}
-      <div className="relative z-10 max-w-4xl mx-auto px-6 pb-24">
+      <div className="relative z-10 max-w-3xl mx-auto px-6 pb-16">
         <div className="flex gap-3 rounded-2xl bg-black/20 border border-white/10 p-3 shadow-2xl backdrop-blur">
           <div className="flex-1 aspect-video rounded-xl bg-slate-900/80 flex items-center justify-center">
             <span className="text-white/30 text-sm font-medium">You</span>
@@ -107,8 +136,11 @@ export default function LandingPage({ onGetStarted }) {
         </div>
       </div>
 
+      {/* Logo conveyor belt */}
+      <LogoConveyor />
+
       {/* About */}
-      <section id="about" className="relative z-10 max-w-3xl mx-auto px-6 pb-24 text-center scroll-mt-24">
+      <section id="about" className="relative z-10 max-w-2xl mx-auto px-6 pb-16 text-center scroll-mt-24">
         <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
           About Neptune Chat
         </h2>
@@ -122,7 +154,7 @@ export default function LandingPage({ onGetStarted }) {
       </section>
 
       {/* Features */}
-      <section id="how-it-works" className="relative z-10 max-w-5xl mx-auto px-6 pb-24 grid grid-cols-1 md:grid-cols-3 gap-5 scroll-mt-24">
+      <section id="how-it-works" className="relative z-10 max-w-4xl mx-auto px-6 pb-16 grid grid-cols-1 md:grid-cols-3 gap-5 scroll-mt-24">
         <FeatureCard
           icon="🎓"
           title=".edu verified"
@@ -141,8 +173,8 @@ export default function LandingPage({ onGetStarted }) {
       </section>
 
       {/* Comparison table */}
-      <section className="relative z-10 max-w-4xl mx-auto px-6 pb-24">
-        <div className="text-center mb-10">
+      <section className="relative z-10 max-w-3xl mx-auto px-6 pb-16">
+        <div className="text-center mb-8">
           <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
             Why Neptune Chat is different
           </h2>
@@ -152,7 +184,7 @@ export default function LandingPage({ onGetStarted }) {
           </p>
         </div>
 
-        <p className="text-white/70 text-sm max-w-2xl mx-auto text-center mb-6 leading-relaxed">
+        <p className="text-white/70 text-sm max-w-xl mx-auto text-center mb-6 leading-relaxed">
           Most random chat apps let anyone sign up with just an email
           address. Neptune Chat requires a verified college email before
           you can talk to anyone, so here's how that compares to a few
@@ -220,8 +252,8 @@ export default function LandingPage({ onGetStarted }) {
       </section>
 
       {/* FAQ */}
-      <section id="faq" className="relative z-10 max-w-3xl mx-auto px-6 pb-28 scroll-mt-24">
-        <div className="text-center mb-10">
+      <section id="faq" className="relative z-10 max-w-2xl mx-auto px-6 pb-20 scroll-mt-24">
+        <div className="text-center mb-8">
           <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
             Frequently asked questions
           </h2>
@@ -265,9 +297,73 @@ export default function LandingPage({ onGetStarted }) {
   );
 }
 
+// Add each school's logo file to public/logos/ (see naming below), then
+// point `logo` at it, e.g. "/logos/ucf.png". Keep files transparent-background
+// PNGs/SVGs where possible, trimmed of extra padding, for a consistent row.
+const COLLEGES = [
+  { name: "UCF", logo: "/logos/ucf.png" },
+  { name: "Michigan State University", logo: "/logos/msu.png" },
+  { name: "ASU", logo: "/logos/asu.png" },
+  { name: "UF", logo: "/logos/uf.png" },
+  { name: "FSU", logo: "/logos/fsu.png" },
+  { name: "FAU", logo: "/logos/fau.png" },
+  { name: "University of Georgia", logo: "/logos/uga.png" },
+  { name: "Ohio State", logo: "/logos/osu.png" },
+  { name: "University of Miami", logo: "/logos/umiami.png" },
+  { name: "UCLA", logo: "/logos/ucla.png" },
+  { name: "USC", logo: "/logos/usc.png" },
+];
+
+function LogoConveyor() {
+  // Track is duplicated so the belt can loop seamlessly at translateX(-50%)
+  const track = [...COLLEGES, ...COLLEGES];
+
+  return (
+    <div className="relative z-10 max-w-5xl mx-auto px-6 pb-16">
+      <p className="text-center text-white/40 text-xs font-semibold tracking-widest uppercase mb-5">
+        Trusted by students at
+      </p>
+      <div className="relative overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]">
+        <div
+          className="flex w-max items-center gap-4 [animation:marquee_26s_linear_infinite] hover:[animation-play-state:paused]"
+        >
+          {track.map((school, i) => (
+            <LogoTile key={i} school={school} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LogoTile({ school }) {
+  // Falls back to the school's name if the logo file is missing/not added yet,
+  // instead of showing a broken-image icon.
+  const [failed, setFailed] = useState(false);
+
+  return (
+    <div className="shrink-0 flex items-center justify-center h-16 w-32 rounded-xl bg-white/10 border border-white/15 backdrop-blur transition-colors duration-200 hover:bg-white/[0.16] px-4">
+      {failed ? (
+        <span className="text-white/60 font-semibold text-xs text-center leading-tight">
+          {school.name}
+        </span>
+      ) : (
+        <img
+          src={school.logo}
+          alt={school.name}
+          title={school.name}
+          className="max-h-8 max-w-full w-auto object-contain"
+          loading="lazy"
+          onError={() => setFailed(true)}
+        />
+      )}
+    </div>
+  );
+}
+
 function FeatureCard({ icon, title, body }) {
   return (
-    <div className="rounded-2xl bg-white/10 border border-white/20 backdrop-blur p-6 text-left">
+    <div className="rounded-2xl bg-white/10 border border-white/20 backdrop-blur p-6 text-left transition-all duration-200 hover:bg-white/15 hover:border-white/30 hover:-translate-y-1">
       <span className="text-3xl">{icon}</span>
       <h3 className="mt-3 text-white font-bold text-lg">{title}</h3>
       <p className="mt-1.5 text-white/70 text-sm leading-relaxed">{body}</p>
@@ -312,27 +408,50 @@ function FaqItem({ question, answer }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="rounded-xl bg-white/10 border border-white/20 backdrop-blur overflow-hidden">
+    <div
+      className={`rounded-xl border backdrop-blur overflow-hidden transition-all duration-300 ${
+        open
+          ? "bg-white/15 border-yellow-300/40 shadow-lg"
+          : "bg-white/10 border-white/20 hover:bg-white/[0.13]"
+      }`}
+    >
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between px-5 py-4 text-left"
+        className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left"
       >
-        <span className="text-white font-semibold text-sm md:text-base">
+        <span
+          className={`font-semibold text-sm md:text-base transition-colors duration-200 ${
+            open ? "text-yellow-300" : "text-white"
+          }`}
+        >
           {question}
         </span>
         <span
-          className={`text-yellow-300 text-xl leading-none transition-transform ${
-            open ? "rotate-45" : ""
+          className={`shrink-0 flex items-center justify-center w-7 h-7 rounded-full transition-all duration-300 ${
+            open ? "bg-yellow-400 rotate-[135deg]" : "bg-white/10"
           }`}
         >
-          +
+          <span
+            className={`text-lg leading-none transition-colors duration-300 ${
+              open ? "text-indigo-900" : "text-yellow-300"
+            }`}
+          >
+            +
+          </span>
         </span>
       </button>
-      {open && (
-        <div className="px-5 pb-4 text-white/70 text-sm leading-relaxed">
-          {answer}
+
+      {/* Smooth grid-based expand/collapse, no layout jump */}
+      <div
+        className="grid transition-[grid-template-rows] duration-300 ease-in-out"
+        style={{ gridTemplateRows: open ? "1fr" : "0fr" }}
+      >
+        <div className="overflow-hidden">
+          <p className="px-5 pb-4 text-white/70 text-sm leading-relaxed border-t border-white/10 pt-3">
+            {answer}
+          </p>
         </div>
-      )}
+      </div>
     </div>
   );
 }
