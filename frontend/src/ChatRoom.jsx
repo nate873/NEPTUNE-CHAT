@@ -2,15 +2,34 @@ import { useEffect, useRef, useState } from "react";
 import { socket } from "./socket";
 import { supabase } from "./supabaseClient";
 
-// NOTE: STUN alone often fails on restrictive networks (many college wifi
-// networks block the direct UDP paths STUN relies on). Add a TURN server
-// here for reliable connections — e.g. a free/low-cost TURN provider like
-// Metered, Twilio, or Cloudflare Calls. Example shape:
-// { urls: "turn:your-turn-server.com:3478", username: "user", credential: "pass" }
+// TURN credentials from Metered (dashboard.metered.ca) — needed because
+// STUN alone fails on restrictive networks / cellular NAT (this is why
+// phone <-> computer connections were failing before).
 const ICE_SERVERS = {
   iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    // { urls: "turn:your-turn-server.com:3478", username: "USERNAME", credential: "CREDENTIAL" },
+    {
+      urls: "stun:stun.relay.metered.ca:80",
+    },
+    {
+      urls: "turn:global.relay.metered.ca:80",
+      username: "b1552fd424f7e06b925c5ab3",
+      credential: "Bu5pCjH3iwxBIZ35",
+    },
+    {
+      urls: "turn:global.relay.metered.ca:80?transport=tcp",
+      username: "b1552fd424f7e06b925c5ab3",
+      credential: "Bu5pCjH3iwxBIZ35",
+    },
+    {
+      urls: "turn:global.relay.metered.ca:443",
+      username: "b1552fd424f7e06b925c5ab3",
+      credential: "Bu5pCjH3iwxBIZ35",
+    },
+    {
+      urls: "turns:global.relay.metered.ca:443?transport=tcp",
+      username: "b1552fd424f7e06b925c5ab3",
+      credential: "Bu5pCjH3iwxBIZ35",
+    },
   ],
 };
 
