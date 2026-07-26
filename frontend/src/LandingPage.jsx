@@ -99,9 +99,9 @@ export default function LandingPage({ onGetStarted }) {
         </div>
 
         <h1 className="text-5xl md:text-7xl font-extrabold text-white leading-[1.03] tracking-tight">
-          Meet someone new
+          Meet college students
           <br />
-          on campus, right now.
+          from around the world.
         </h1>
 
         <p className="mt-6 text-lg md:text-xl text-white/70 max-w-xl mx-auto">
@@ -113,10 +113,10 @@ export default function LandingPage({ onGetStarted }) {
         <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
           <button
             onClick={() => onGetStarted("signup")}
-            className="group px-8 py-3.5 bg-yellow-400 text-indigo-900 font-bold rounded-full shadow-lg transition-all duration-200 hover:bg-yellow-300 hover:scale-105 hover:shadow-yellow-300/60 hover:shadow-xl active:scale-95 text-base"
+            className="group px-12 py-5 bg-yellow-400 text-indigo-900 font-extrabold rounded-full shadow-lg transition-all duration-200 hover:bg-yellow-300 hover:scale-105 hover:shadow-yellow-300/60 hover:shadow-2xl active:scale-95 text-xl md:text-2xl"
           >
-            <span className="inline-flex items-center gap-2">
-              Start Chatting
+            <span className="inline-flex items-center gap-3">
+              Start Video Chat
               <span className="inline-block transition-transform duration-200 group-hover:translate-x-1">
                 →
               </span>
@@ -219,28 +219,28 @@ export default function LandingPage({ onGetStarted }) {
               <tbody>
                 <ComparisonRow
                   label="Requires college email"
-                  neptune={true}
-                  others={[false, false, false]}
+                  neptune="Verified"
+                  others={["Not required", "Not required", "Not required"]}
                 />
                 <ComparisonRow
                   label="Age-verified accounts"
-                  neptune={true}
-                  others={[false, false, false]}
+                  neptune="Verified"
+                  others={["Unverified", "Unverified", "Unverified"]}
                 />
                 <ComparisonRow
                   label="Password-protected login"
-                  neptune={true}
-                  others={[false, false, false]}
+                  neptune="Secure login"
+                  others={["Open access", "Open access", "Open access"]}
                 />
                 <ComparisonRow
                   label="Video + text together"
-                  neptune={true}
-                  others={[true, true, true]}
+                  neptune="Included"
+                  others={["Included", "Included", "Included"]}
                 />
                 <ComparisonRow
                   label="Instant re-match"
-                  neptune={true}
-                  others={[true, true, true]}
+                  neptune="Instant Next"
+                  others={["Instant Next", "Instant Next", "Instant Next"]}
                   last
                 />
               </tbody>
@@ -293,7 +293,7 @@ export default function LandingPage({ onGetStarted }) {
       {/* Footer */}
       <footer className="relative z-10 text-center pb-10">
         <p className="text-white/40 text-xs">
-          @ The Neptune Way LLC, A Florida Limited Liability Company
+          © 2026 The Neptune Way LLC, A Florida Limited Liability Company. All rights reserved.
         </p>
       </footer>
     </div>
@@ -390,21 +390,29 @@ function ComparisonRow({ label, neptune, others, last }) {
   );
 }
 
+// Words carrying a positive meaning render green, negative words render rose,
+// anything else (neutral/shared features) renders a soft slate.
+const POSITIVE_WORDS = [
+  "verified",
+  "secure login",
+  "included",
+  "instant next",
+];
+const NEGATIVE_WORDS = ["not required", "unverified", "open access"];
+
 function Mark({ value, highlight }) {
-  if (value) {
-    return (
-      <span
-        className={
-          highlight
-            ? "text-emerald-300 font-semibold"
-            : "text-emerald-300/70 font-medium"
-        }
-      >
-        Yes
-      </span>
-    );
+  const normalized = value.toLowerCase();
+  let tone = "text-white/60 font-medium";
+
+  if (POSITIVE_WORDS.includes(normalized)) {
+    tone = highlight
+      ? "text-emerald-300 font-semibold"
+      : "text-emerald-300/70 font-medium";
+  } else if (NEGATIVE_WORDS.includes(normalized)) {
+    tone = "text-rose-300/70 font-medium";
   }
-  return <span className="text-rose-300/70 font-medium">No</span>;
+
+  return <span className={tone}>{value}</span>;
 }
 
 function FaqItem({ question, answer }) {
