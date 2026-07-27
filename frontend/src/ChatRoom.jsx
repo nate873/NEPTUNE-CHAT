@@ -56,11 +56,23 @@ export default function ChatRoom({ session }) {
   const pcRef = useRef(null);
   const localStreamRef = useRef(null);
   const pendingSignalsRef = useRef([]); // signals that arrive before pc exists
+  const audioCtxRef = useRef(null); // lazy-created on first user gesture
+  const toastTimeoutRef = useRef(null);
+  const searchIntervalRef = useRef(null);
 
   const [status, setStatus] = useState("idle"); // idle | searching | connected
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // --- New: appeal/polish state ---
+  const [micOn, setMicOn] = useState(true);
+  const [camOn, setCamOn] = useState(true);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [searchSeconds, setSearchSeconds] = useState(0);
+  const [sessionCount, setSessionCount] = useState(0);
+  const [toast, setToast] = useState(null); // { message, tone }
 
   const userEmail = session?.user?.email || "";
   const displayName = session?.user?.user_metadata?.display_name || userEmail;
@@ -93,6 +105,43 @@ export default function ChatRoom({ session }) {
     await supabase.auth.signOut();
   }
 
+  // --- New: toast helper — shows a brief message, auto-dismisses ---
+  function showToast(message, tone = "info") {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToast({ message, tone });
+    toastTimeoutRef.current = setTimeout(() => setToast(null), 3200);
+  }
+
+  // --- New: tiny two-tone chime played on match, using Web Audio so no
+  // audio file/asset is needed. Created lazily on first call (must follow
+  // a user gesture, which "Start Chat" / matching always does). ---
+  function playMatchChime() {
+    if (!soundEnabled) return;
+    try {
+      if (!audioCtxRef.current) {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        audioCtxRef.current = new Ctx();
+      }
+      const ctx = audioCtxRef.current;
+      const now = ctx.currentTime;
+      [523.25, 783.99].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.0001, now + i * 0.11);
+        gain.gain.linearRampToValueAtTime(0.12, now + i * 0.11 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.11 + 0.35);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(now + i * 0.11);
+        osc.stop(now + i * 0.11 + 0.4);
+      });
+    } catch (err) {
+      // Audio isn't critical — fail silently if the browser blocks it.
+      console.error("Could not play match chime", err);
+    }
+  }
+
   useEffect(() => {
     socket.on("matched", handleMatched);
     socket.on("signal", handleSignal);
@@ -105,9 +154,32 @@ export default function ChatRoom({ session }) {
       socket.off("chat-message", handleChatMessage);
       socket.off("partner-left", handlePartnerLeft);
       cleanupConnection();
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+      if (searchIntervalRef.current) clearInterval(searchIntervalRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // --- New: elapsed-time counter while searching, so it doesn't feel stuck ---
+  useEffect(() => {
+    if (status === "searching") {
+      setSearchSeconds(0);
+      searchIntervalRef.current = setInterval(() => {
+        setSearchSeconds((s) => s + 1);
+      }, 1000);
+    } else {
+      if (searchIntervalRef.current) {
+        clearInterval(searchIntervalRef.current);
+        searchIntervalRef.current = null;
+      }
+    }
+    return () => {
+      if (searchIntervalRef.current) {
+        clearInterval(searchIntervalRef.current);
+        searchIntervalRef.current = null;
+      }
+    };
+  }, [status]);
 
   async function getLocalStream() {
     if (localStreamRef.current) return localStreamRef.current;
@@ -117,6 +189,7 @@ export default function ChatRoom({ session }) {
     });
     localStreamRef.current = stream;
     if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+    setCameraReady(true);
     return stream;
   }
 
@@ -158,6 +231,9 @@ export default function ChatRoom({ session }) {
   async function handleMatched({ initiator }) {
     setStatus("connected");
     setMessages([]);
+    setSessionCount((c) => c + 1);
+    playMatchChime();
+    showToast("You're connected!", "success");
 
     // Create the peer connection FIRST, synchronously, so incoming signals
     // are never dropped while we're still waiting on getUserMedia().
@@ -175,6 +251,9 @@ export default function ChatRoom({ session }) {
 
     const stream = await getLocalStream();
     stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+    // Respect any mute/camera-off state the user had set before matching.
+    stream.getAudioTracks().forEach((t) => (t.enabled = micOn));
+    stream.getVideoTracks().forEach((t) => (t.enabled = camOn));
 
     if (initiator) {
       const offer = await pc.createOffer();
@@ -205,6 +284,7 @@ export default function ChatRoom({ session }) {
     }
     pendingSignalsRef.current = [];
     setInput("");
+    showToast("Stranger disconnected — finding someone new...", "info");
     startSearch(); // automatically look for a new match — also clears messages
   }
 
@@ -218,6 +298,7 @@ export default function ChatRoom({ session }) {
       localStreamRef.current = null;
     }
     pendingSignalsRef.current = [];
+    setCameraReady(false);
   }
 
   async function startSearch() {
@@ -255,18 +336,89 @@ export default function ChatRoom({ session }) {
     setInput("");
   }
 
+  // --- New: mic / camera toggles, applied live to the active stream ---
+  function toggleMic() {
+    setMicOn((prev) => {
+      const next = !prev;
+      localStreamRef.current
+        ?.getAudioTracks()
+        .forEach((t) => (t.enabled = next));
+      return next;
+    });
+  }
+
+  function toggleCam() {
+    setCamOn((prev) => {
+      const next = !prev;
+      localStreamRef.current
+        ?.getVideoTracks()
+        .forEach((t) => (t.enabled = next));
+      return next;
+    });
+  }
+
+  // --- New: lightweight report action. No backend endpoint exists yet —
+  // this emits a socket event (server can no-op or log it for now) and
+  // immediately skips to a new match, same as pressing Next. ---
+  function reportAndSkip() {
+    socket.emit("report-user");
+    showToast("Reported. Moving you to someone new.", "info");
+    nextOrLeave();
+  }
+
   return (
-    <div className="chatroom-container h-screen w-full bg-gradient-to-br from-indigo-600 via-violet-600 to-blue-600 flex flex-col overflow-hidden">
+    <div className="chatroom-container h-screen w-full bg-gradient-to-br from-indigo-600 via-violet-600 to-blue-600 flex flex-col overflow-hidden relative">
+      {/* Ambient drifting orbs — subtle background motion so the screen
+          doesn't feel static while idle or searching. */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="orb orb-a absolute -top-20 -left-20 w-80 h-80 rounded-full bg-yellow-300/10 blur-3xl" />
+        <div className="orb orb-b absolute top-1/2 -right-24 w-96 h-96 rounded-full bg-cyan-300/10 blur-3xl" />
+      </div>
+
+      {/* Toast notification */}
+      {toast && (
+        <div
+          className={`toast fixed top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-full shadow-lg text-sm font-semibold backdrop-blur border ${
+            toast.tone === "success"
+              ? "bg-emerald-400/90 text-emerald-950 border-emerald-200/50"
+              : "bg-slate-900/90 text-white border-white/10"
+          }`}
+        >
+          {toast.message}
+        </div>
+      )}
+
       {/* Header */}
-      <header className="shrink-0 flex items-center justify-between px-6 py-3">
+      <header className="relative shrink-0 flex items-center justify-between px-6 py-3">
         <h1 className="text-2xl font-bold text-white tracking-tight drop-shadow">
           🔱 Neptune Chat
         </h1>
 
         <div className="flex items-center gap-4">
+          {sessionCount > 0 && (
+            <span className="hidden sm:inline text-white/60 text-xs font-medium">
+              Chat #{sessionCount} today
+            </span>
+          )}
+
+          {/* Sound toggle */}
+          <button
+            onClick={() => setSoundEnabled((s) => !s)}
+            title={soundEnabled ? "Mute match chime" : "Unmute match chime"}
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-sm transition"
+          >
+            {soundEnabled ? "🔊" : "🔇"}
+          </button>
+
           {status === "connected" && (
-            <span className="flex items-center gap-2 text-sm text-white font-medium">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="flex items-center gap-1.5 text-sm text-white font-medium">
+              {/* Simple signal-bars icon, all bars lit = good connection */}
+              <svg viewBox="0 0 20 14" className="w-4 h-3.5" fill="none">
+                <rect x="0" y="9" width="3" height="5" rx="1" fill="#34d399" />
+                <rect x="5.5" y="6" width="3" height="8" rx="1" fill="#34d399" />
+                <rect x="11" y="3" width="3" height="11" rx="1" fill="#34d399" />
+                <rect x="16.5" y="0" width="3" height="14" rx="1" fill="#34d399" />
+              </svg>
               Connected
             </span>
           )}
@@ -274,22 +426,12 @@ export default function ChatRoom({ session }) {
           <div className="relative">
             <button
               onClick={() => setMenuOpen((open) => !open)}
-              className={`flex items-center gap-2 border rounded-full pl-1.5 pr-3 py-1 transition shadow-sm ${
-                menuOpen
-                  ? "bg-white/20 border-yellow-300/60"
-                  : "bg-white/10 border-white/20 hover:bg-white/20"
+              title={displayName}
+              className={`w-9 h-9 rounded-full bg-yellow-400 text-indigo-900 font-bold flex items-center justify-center text-sm ring-2 transition shadow-sm ${
+                menuOpen ? "ring-yellow-300" : "ring-transparent"
               }`}
             >
-              <span
-                className={`w-7 h-7 rounded-full bg-yellow-400 text-indigo-900 font-bold flex items-center justify-center text-sm ring-2 transition ${
-                  menuOpen ? "ring-yellow-300" : "ring-transparent"
-                }`}
-              >
-                {avatarLetter}
-              </span>
-              <span className="text-white text-sm max-w-[160px] truncate font-medium">
-                {displayName}
-              </span>
+              {avatarLetter}
             </button>
 
             {menuOpen && (
@@ -363,54 +505,115 @@ export default function ChatRoom({ session }) {
       </header>
 
       {/* Everything below fits in the remaining viewport height — no page scroll. */}
-      <main className="flex-1 min-h-0 flex flex-col gap-3 px-6 pb-4">
-        {/* Video row — local and remote boxes are the same size, side by side */}
-        <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-4">
-          <div className="video-box relative flex-1 min-h-0 rounded-2xl overflow-hidden shadow-xl bg-slate-900">
-            <video
-              ref={localVideoRef}
-              autoPlay
-              muted
-              playsInline
-              className="w-full h-full object-cover"
-            />
-            <span className="absolute bottom-3 left-3 px-3 py-1 rounded-full bg-black/50 text-white text-xs font-medium max-w-[70%] truncate">
-              {displayName || "You"}
-            </span>
-          </div>
+      <main className="relative flex-1 min-h-0 flex flex-col gap-3 px-6 pb-4">
+        {/* Video row — local and remote boxes are the same size, side by side.
+            Constrained to a max width/height so the boxes read a bit smaller
+            than edge-to-edge, with breathing room around them. */}
+        <div className="flex-1 min-h-0 flex items-center justify-center">
+          <div className="w-full max-w-5xl h-full max-h-[68vh] flex flex-col lg:flex-row gap-4">
+            <div
+              className={`video-box relative flex-1 min-h-0 rounded-2xl overflow-hidden shadow-xl bg-slate-900 transition-all duration-300 ${
+                status === "connected" ? "ring-4 ring-emerald-400/60" : ""
+              }`}
+            >
+              <video
+                ref={localVideoRef}
+                autoPlay
+                muted
+                playsInline
+                className="w-full h-full object-cover"
+              />
 
-          <div className="video-box relative flex-1 min-h-0 rounded-2xl overflow-hidden shadow-xl bg-slate-900 flex items-center justify-center">
-            <video
-              ref={remoteVideoRef}
-              autoPlay
-              playsInline
-              className="w-full h-full object-cover"
-            />
-            {status !== "connected" && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-900/95">
-                {status === "searching" ? (
-                  <>
-                    <p className="searching-text">
-                      Looking for someone to chat with...
+              {/* Skeleton shown until the camera stream is actually ready */}
+              {status !== "idle" && !cameraReady && (
+                <div className="camera-skeleton absolute inset-0 flex items-center justify-center bg-slate-800">
+                  <span className="text-slate-400 text-xs font-medium">
+                    Loading camera...
+                  </span>
+                </div>
+              )}
+
+              {!camOn && cameraReady && (
+                <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
+                  <span className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center text-2xl">
+                    {avatarLetter}
+                  </span>
+                </div>
+              )}
+
+              <span className="absolute bottom-3 left-3 px-3 py-1 rounded-full bg-black/50 text-white text-xs font-medium max-w-[70%] truncate">
+                {displayName || "You"}
+              </span>
+
+              {/* Mic / camera toggles — only useful once the camera is on */}
+              {status !== "idle" && (
+                <div className="absolute bottom-3 right-3 flex gap-2">
+                  <button
+                    onClick={toggleMic}
+                    title={micOn ? "Mute microphone" : "Unmute microphone"}
+                    className={`cam-btn w-8 h-8 rounded-full flex items-center justify-center text-sm transition ${
+                      micOn
+                        ? "bg-white/15 hover:bg-white/25"
+                        : "bg-rose-500/90 hover:bg-rose-500"
+                    }`}
+                  >
+                    {micOn ? "🎤" : "🔇"}
+                  </button>
+                  <button
+                    onClick={toggleCam}
+                    title={camOn ? "Turn camera off" : "Turn camera on"}
+                    className={`cam-btn w-8 h-8 rounded-full flex items-center justify-center text-sm transition ${
+                      camOn
+                        ? "bg-white/15 hover:bg-white/25"
+                        : "bg-rose-500/90 hover:bg-rose-500"
+                    }`}
+                  >
+                    {camOn ? "📹" : "🚫"}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div
+              className={`video-box relative flex-1 min-h-0 rounded-2xl overflow-hidden shadow-xl bg-slate-900 flex items-center justify-center transition-all duration-300 ${
+                status === "connected" ? "ring-4 ring-emerald-400/60" : ""
+              }`}
+            >
+              <video
+                ref={remoteVideoRef}
+                autoPlay
+                playsInline
+                className="w-full h-full object-cover"
+              />
+              {status !== "connected" && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-900/95">
+                  {status === "searching" ? (
+                    <>
+                      <p className="searching-text">
+                        Looking for someone to chat with...
+                      </p>
+                      <p className="text-slate-500 text-xs">
+                        {selectedUniversity
+                          ? `Matching within ${selectedUniversity.name}`
+                          : "Matching across all universities"}
+                      </p>
+                      <p className="text-slate-600 text-xs tabular-nums">
+                        {searchSeconds}s
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-slate-400 font-medium">
+                      Stranger will appear here
                     </p>
-                    <p className="text-slate-500 text-xs">
-                      {selectedUniversity
-                        ? `Matching within ${selectedUniversity.name}`
-                        : "Matching across all universities"}
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-slate-400 font-medium">
-                    Stranger will appear here
-                  </p>
-                )}
-              </div>
-            )}
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Controls — compact row between the videos and the chat */}
-        <div className="shrink-0 flex flex-col items-center gap-1.5">
+        <div className="shrink-0 flex flex-col items-center gap-2">
           {status !== "idle" && (
             <span className="text-white/50 text-xs font-medium">
               {selectedUniversity ? (
@@ -425,7 +628,7 @@ export default function ChatRoom({ session }) {
           )}
 
           {status === "idle" && (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <UniversityFilterPicker
                 open={filterOpen}
                 setOpen={setFilterOpen}
@@ -435,41 +638,48 @@ export default function ChatRoom({ session }) {
               />
               <button
                 onClick={startSearch}
-                className="start-btn px-6 py-2 bg-yellow-400 text-indigo-900 font-bold rounded-full shadow-lg text-sm"
+                className="start-btn px-10 py-3.5 bg-yellow-400 text-indigo-900 font-bold rounded-full shadow-lg text-lg"
               >
                 Start Chat
               </button>
             </div>
           )}
           {status === "searching" && (
-            <div className="flex gap-3">
+            <div className="flex gap-4">
               <button
                 disabled
-                className="px-6 py-2 bg-white/20 text-white font-semibold rounded-full shadow-inner cursor-not-allowed text-sm"
+                className="px-10 py-3.5 bg-white/20 text-white font-semibold rounded-full shadow-inner cursor-not-allowed text-lg"
               >
                 Searching...
               </button>
               <button
                 onClick={stopChat}
-                className="px-6 py-2 bg-white/10 border border-white/40 text-white font-semibold rounded-full transition-all duration-200 hover:bg-white/20 hover:scale-105 active:scale-95 text-sm"
+                className="px-10 py-3.5 bg-white/10 border border-white/40 text-white font-semibold rounded-full transition-all duration-200 hover:bg-white/20 hover:scale-105 active:scale-95 text-lg"
               >
                 Stop
               </button>
             </div>
           )}
           {status === "connected" && (
-            <div className="flex gap-3">
+            <div className="flex gap-4">
               <button
                 onClick={nextOrLeave}
-                className="next-btn px-6 py-2 bg-rose-500 text-white font-bold rounded-full shadow-lg text-sm"
+                className="next-btn px-10 py-3.5 bg-rose-500 text-white font-bold rounded-full shadow-lg text-lg"
               >
                 Next ⏭
               </button>
               <button
                 onClick={stopChat}
-                className="px-6 py-2 bg-white/10 border border-white/40 text-white font-semibold rounded-full transition-all duration-200 hover:bg-white/20 hover:scale-105 active:scale-95 text-sm"
+                className="px-10 py-3.5 bg-white/10 border border-white/40 text-white font-semibold rounded-full transition-all duration-200 hover:bg-white/20 hover:scale-105 active:scale-95 text-lg"
               >
                 Stop
+              </button>
+              <button
+                onClick={reportAndSkip}
+                title="Report this person and move on"
+                className="px-6 py-3.5 bg-white/5 border border-white/20 text-white/70 hover:text-white hover:bg-white/10 font-semibold rounded-full transition-all duration-200 text-sm"
+              >
+                🚩 Report
               </button>
             </div>
           )}
@@ -535,29 +745,29 @@ function UniversityFilterPicker({ open, setOpen, selected, onSelect, selectedUni
     <div className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full pl-2 pr-4 py-1.5 transition-all duration-200"
+        className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full pl-2.5 pr-5 py-3 transition-all duration-200"
       >
         {selectedUniversity ? (
           <>
-            <span className="w-6 h-6 rounded-full bg-white flex items-center justify-center overflow-hidden shrink-0">
-              <UniLogo school={selectedUniversity} size={16} />
+            <span className="w-7 h-7 rounded-full bg-white flex items-center justify-center overflow-hidden shrink-0">
+              <UniLogo school={selectedUniversity} size={18} />
             </span>
-            <span className="text-white text-sm font-medium">
+            <span className="text-white text-base font-medium">
               {selectedUniversity.name}
             </span>
           </>
         ) : (
           <>
-            <span className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs shrink-0">
+            <span className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-sm shrink-0">
               🌐
             </span>
-            <span className="text-white text-sm font-medium">
+            <span className="text-white text-base font-medium">
               All Universities
             </span>
           </>
         )}
         <span
-          className={`text-white/60 text-xs transition-transform duration-200 ${
+          className={`text-white/60 text-sm transition-transform duration-200 ${
             open ? "rotate-180" : ""
           }`}
         >

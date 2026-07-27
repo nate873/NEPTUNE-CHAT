@@ -73,28 +73,22 @@ export default function LandingPage({ onGetStarted }) {
 
       {/* Hero */}
       <header className="relative z-10 max-w-3xl mx-auto px-6 pt-8 pb-12 text-center">
-        <div className="inline-flex items-center gap-2.5 pl-2 pr-4 py-1.5 rounded-full bg-white/10 border border-white/25 backdrop-blur mb-5 shadow-[0_0_24px_-4px_rgba(52,211,153,0.35)]">
-          <span className="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-400/25 ring-1 ring-emerald-300/40">
-            <svg
-              viewBox="0 0 20 20"
-              fill="none"
-              className="w-3 h-3 text-emerald-300"
-            >
-              <path
-                d="M4 10.5l3.5 3.5L16 5"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </span>
-          <span className="text-white text-xs font-bold tracking-wide uppercase">
+        <div className="inline-flex items-center gap-2 mb-5">
+          <svg
+            viewBox="0 0 20 20"
+            fill="none"
+            className="w-6 h-6 text-emerald-300"
+          >
+            <path
+              d="M4 10.5l3.5 3.5L16 5"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span className="text-white text-lg font-bold tracking-wide uppercase">
             .edu verified
-          </span>
-          <span className="w-1 h-1 rounded-full bg-white/30" />
-          <span className="text-white/60 text-xs font-medium tracking-wide">
-            college students only
           </span>
         </div>
 

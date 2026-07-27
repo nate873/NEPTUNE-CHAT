@@ -4,7 +4,7 @@
 
 .video-box {
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-  transition: transform 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .video-box:hover {
@@ -74,4 +74,70 @@
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- New: ambient drifting background orbs, subtle motion so the screen
+   never feels totally static, even at idle. --- */
+.orb {
+  animation: orb-drift 14s ease-in-out infinite alternate;
+}
+
+.orb-b {
+  animation-duration: 18s;
+  animation-delay: -4s;
+}
+
+@keyframes orb-drift {
+  0%   { transform: translate(0, 0) scale(1); }
+  50%  { transform: translate(24px, -18px) scale(1.06); }
+  100% { transform: translate(-16px, 12px) scale(0.98); }
+}
+
+/* --- New: toast notification enter animation --- */
+.toast {
+  animation: toast-in 0.25s ease-out;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, -8px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* --- New: mic/camera toggle buttons over the local video --- */
+.cam-btn {
+  backdrop-filter: blur(4px);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.cam-btn:hover {
+  transform: translateY(-1px);
+}
+
+.cam-btn:active {
+  transform: scale(0.92);
+}
+
+/* --- New: shimmering skeleton while the camera stream is still loading --- */
+.camera-skeleton {
+  position: relative;
+  overflow: hidden;
+}
+
+.camera-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.06) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
