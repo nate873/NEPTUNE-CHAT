@@ -36,10 +36,16 @@ const UserState = Object.freeze({
   DISCONNECTED: "DISCONNECTED",
 });
 
+// "all" is the wildcard pool — a user searching "all" can match with anyone,
+// and anyone (even someone filtered to a specific school) can match with them.
+const ALL_POOL = "all";
+const MAX_DISPLAY_NAME_LEN = 60;
+const MAX_UNIVERSITY_LEN = 40;
+
 // #6 Set instead of array -> no duplicates, O(1) add/remove/has
 const waitingQueue = new Set();
 
-// socketId -> { state, partnerId, lastPartnerId, joinedQueueAt, rate: {} }
+// socketId -> { state, partnerId, lastPartnerId, joinedQueueAt, rate: {}, university, displayName }
 const users = new Map();
 
 // #11 Matchmaking lock: prevents re-entrant tryMatch() calls from
@@ -69,10 +75,22 @@ function ensureUser(socketId) {
       lastPartnerId: null,
       joinedQueueAt: null,
       rate: {},
+      university: ALL_POOL,
+      displayName: null,
     };
     users.set(socketId, u);
   }
   return u;
+}
+
+// New: basic string sanitizing for client-supplied identity fields. Not a
+// security boundary on its own (client can send whatever), just guards
+// against absurd payloads (huge strings, non-strings, empty strings).
+function sanitizeString(value, maxLen) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.slice(0, maxLen);
 }
 
 function emitStatus(socketId, status, extra = {}) {
@@ -125,6 +143,15 @@ function pruneQueue() {
   }
 }
 
+// New: two users are compatible if either one is searching "all" (the
+// wildcard pool), or they're both filtered to the same specific school.
+// This is what lets a user filtered to e.g. "fau" only match FAU students
+// or "all" users, while still letting "all" users match anyone.
+function isCompatible(aUser, bUser) {
+  if (aUser.university === ALL_POOL || bUser.university === ALL_POOL) return true;
+  return aUser.university === bUser.university;
+}
+
 // #2 Randomize, #4 never duplicate-pair, #9 avoid immediate rematch where possible
 function tryMatch() {
   if (isMatching) return; // #11
@@ -147,25 +174,47 @@ function tryMatch() {
         continue;
       }
 
-      // #9 Prefer a candidate that isn't a's last partner
+      // #9 Prefer a candidate that isn't a's last partner, and is
+      // university-compatible with a.
       let bIndex = pool.findIndex((id) => {
         const bUser = getUser(id);
         const bSocket = io.sockets.sockets.get(id);
-        return bSocket && bUser && bUser.state !== UserState.MATCHED && id !== aUser.lastPartnerId;
+        return (
+          bSocket &&
+          bUser &&
+          bUser.state !== UserState.MATCHED &&
+          id !== aUser.lastPartnerId &&
+          isCompatible(aUser, bUser)
+        );
       });
 
-      // Fallback: no "fresh" candidate available, take the first valid one anyway
+      // Fallback: no "fresh" (non-repeat) candidate available — take the
+      // first university-compatible one anyway, repeat partner or not.
       if (bIndex === -1) {
         bIndex = pool.findIndex((id) => {
           const bUser = getUser(id);
           const bSocket = io.sockets.sockets.get(id);
-          return bSocket && bUser && bUser.state !== UserState.MATCHED;
+          return (
+            bSocket &&
+            bUser &&
+            bUser.state !== UserState.MATCHED &&
+            isCompatible(aUser, bUser)
+          );
         });
       }
 
       if (bIndex === -1) {
-        // No valid partner left this pass; put a back and stop
-        break;
+        // No compatible partner for `a` in this pass. Put a back at the end
+        // of the pool (someone university-compatible with them might still
+        // show up later in the shuffle) and move on — don't just stop, or
+        // one incompatible user at the front could stall the whole pass.
+        pool.push(aId);
+        // Safety: if we've now cycled the entire remaining pool without a
+        // match for anyone, bail to avoid an infinite loop.
+        if (pool[pool.length - 1] === aId && pool.length === waitingQueue.size) {
+          break;
+        }
+        continue;
       }
 
       const bId = pool.splice(bIndex, 1)[0];
@@ -194,13 +243,23 @@ function tryMatch() {
       aUser.joinedQueueAt = null;
       bUser.joinedQueueAt = null;
 
-      aSocket.emit("matched", { partnerId: bId, initiator: true });
-      bSocket.emit("matched", { partnerId: aId, initiator: false });
+      aSocket.emit("matched", {
+        partnerId: bId,
+        initiator: true,
+        partnerName: bUser.displayName || null,
+      });
+      bSocket.emit("matched", {
+        partnerId: aId,
+        initiator: false,
+        partnerName: aUser.displayName || null,
+      });
       emitStatus(aId, "matched");
       emitStatus(bId, "matched");
 
       // #7 Logging
-      log(`Matched: ${aId} <-> ${bId} | queue size: ${waitingQueue.size} | total matches: ${stats.matchesMade}`);
+      log(
+        `Matched: ${aId} (${aUser.university}) <-> ${bId} (${bUser.university}) | queue size: ${waitingQueue.size} | total matches: ${stats.matchesMade}`
+      );
     }
   } finally {
     isMatching = false;
@@ -247,7 +306,13 @@ io.on("connection", (socket) => {
   ensureUser(socket.id);
   log("connected:", socket.id, "| active users:", users.size);
 
-  socket.on("find-match", () => {
+  // find-match now accepts { university, displayName } from the client.
+  // - university: a school id (e.g. "fau") to restrict matching to that
+  //   school, or "all"/omitted for the wildcard pool. The client already
+  //   re-sends this as "all" on its own after ~12s of no match, so the
+  //   server just needs to honor whatever value is currently set.
+  // - displayName: shown to the matched partner as `partnerName`.
+  socket.on("find-match", ({ university, displayName } = {}) => {
     if (isRateLimited(socket.id, "find-match", 5, 3000)) {
       emitStatus(socket.id, "rate-limited");
       return;
@@ -263,12 +328,18 @@ io.on("connection", (socket) => {
       removeFromQueue(socket.id);
     }
 
+    u.university = sanitizeString(university, MAX_UNIVERSITY_LEN) || ALL_POOL;
+    // Only overwrite displayName if a real one was sent — keeps whatever we
+    // already had (e.g. from a previous find-match call) if this one omits it.
+    const sanitizedName = sanitizeString(displayName, MAX_DISPLAY_NAME_LEN);
+    if (sanitizedName) u.displayName = sanitizedName;
+
     u.state = UserState.WAITING;
     u.joinedQueueAt = Date.now();
     waitingQueue.add(socket.id); // Set dedupes automatically
 
     emitStatus(socket.id, "searching");
-    log(`User joined queue: ${socket.id} | Queue size: ${waitingQueue.size}`);
+    log(`User joined queue: ${socket.id} (${u.university}) | Queue size: ${waitingQueue.size}`);
 
     tryMatch();
   });

@@ -50,6 +50,11 @@ const UNIVERSITIES = [
   { id: "usc", name: "USC", logo: "/logos/usc.png" },
 ];
 
+// How long to wait for a same-school match before we widen the search to
+// everyone. Tune this — shorter feels snappier, longer respects the filter
+// choice more strictly.
+const SCHOOL_MATCH_TIMEOUT_MS = 12000;
+
 export default function ChatRoom({ session }) {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -59,6 +64,10 @@ export default function ChatRoom({ session }) {
   const audioCtxRef = useRef(null); // lazy-created on first user gesture
   const toastTimeoutRef = useRef(null);
   const searchIntervalRef = useRef(null);
+
+  // --- New: fallback-matching refs ---
+  const fallbackTimerRef = useRef(null);
+  const statusRef = useRef("idle"); // mirrors `status`, readable inside timeouts
 
   const [status, setStatus] = useState("idle"); // idle | searching | connected
   const [messages, setMessages] = useState([]);
@@ -73,6 +82,9 @@ export default function ChatRoom({ session }) {
   const [searchSeconds, setSearchSeconds] = useState(0);
   const [sessionCount, setSessionCount] = useState(0);
   const [toast, setToast] = useState(null); // { message, tone }
+
+  // --- New: partner identity for the current/most recent match ---
+  const [partnerName, setPartnerName] = useState(null);
 
   const userEmail = session?.user?.email || "";
   const displayName = session?.user?.user_metadata?.display_name || userEmail;
@@ -89,17 +101,27 @@ export default function ChatRoom({ session }) {
     ? UNIVERSITIES.find((u) => u.id === userUniversityId) || null
     : null;
 
-  // "all" or a UNIVERSITIES[].id — which pool of students to match against.
-  // Defaults to the student's own school if they set one at sign-up.
+  // "all" or a UNIVERSITIES[].id — which pool the user has *asked* to match
+  // against. Defaults to the student's own school if they set one at sign-up.
   const [universityFilter, setUniversityFilter] = useState(
     userUniversityId || "all"
   );
   const [filterOpen, setFilterOpen] = useState(false);
 
+  // --- New: what we're *actually* searching/matched against right now.
+  // Usually mirrors universityFilter, but falls back to "all" (null) if no
+  // one was available within SCHOOL_MATCH_TIMEOUT_MS. Kept separate so the
+  // "Matching with ___" text reflects reality, not just the user's request.
+  const [searchUniversityId, setSearchUniversityId] = useState(null);
+
   const selectedUniversity =
     universityFilter === "all"
       ? null
       : UNIVERSITIES.find((u) => u.id === universityFilter) || null;
+
+  const searchUniversity = searchUniversityId
+    ? UNIVERSITIES.find((u) => u.id === searchUniversityId) || null
+    : null;
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -142,6 +164,12 @@ export default function ChatRoom({ session }) {
     }
   }
 
+  // Keep statusRef in sync so the fallback timeout (which fires well after
+  // this render) can read the *current* status instead of a stale closure.
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
+
   useEffect(() => {
     socket.on("matched", handleMatched);
     socket.on("signal", handleSignal);
@@ -156,6 +184,7 @@ export default function ChatRoom({ session }) {
       cleanupConnection();
       if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
       if (searchIntervalRef.current) clearInterval(searchIntervalRef.current);
+      if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -228,10 +257,18 @@ export default function ChatRoom({ session }) {
     }
   }
 
-  async function handleMatched({ initiator }) {
+  // NOTE: for `partnerName` to actually populate, the server's "matched"
+  // emit needs to include it, e.g.:
+  //   socket.emit("matched", { initiator: true, partnerName: otherSocket.displayName });
+  // Until then this safely falls back to "Stranger".
+  async function handleMatched({ initiator, partnerName: incomingPartnerName }) {
+    // A match happened — stop waiting for the same-school fallback timer.
+    clearFallbackTimer();
+
     setStatus("connected");
     setMessages([]);
     setSessionCount((c) => c + 1);
+    setPartnerName(incomingPartnerName || null);
     playMatchChime();
     showToast("You're connected!", "success");
 
@@ -284,6 +321,7 @@ export default function ChatRoom({ session }) {
     }
     pendingSignalsRef.current = [];
     setInput("");
+    setPartnerName(null);
     showToast("Stranger disconnected — finding someone new...", "info");
     startSearch(); // automatically look for a new match — also clears messages
   }
@@ -301,16 +339,54 @@ export default function ChatRoom({ session }) {
     setCameraReady(false);
   }
 
+  // --- New: fallback-matching helpers ---
+  function clearFallbackTimer() {
+    if (fallbackTimerRef.current) {
+      clearTimeout(fallbackTimerRef.current);
+      fallbackTimerRef.current = null;
+    }
+  }
+
+  // Kicks off (or restarts) the "widen to everyone" countdown. Only runs
+  // when the user picked a specific school — "all" never needs a fallback.
+  function armFallbackTimer(schoolId) {
+    clearFallbackTimer();
+    if (schoolId === "all") return;
+
+    fallbackTimerRef.current = setTimeout(() => {
+      // Only widen if we're still searching (not matched/cancelled since).
+      if (statusRef.current !== "searching") return;
+
+      const school = UNIVERSITIES.find((u) => u.id === schoolId);
+      setSearchUniversityId(null); // "all" for display purposes
+      socket.emit("find-match", { university: "all" });
+      showToast(
+        `No one from ${school ? school.name : "your school"} is online right now — matching you with everyone.`,
+        "info"
+      );
+    }, SCHOOL_MATCH_TIMEOUT_MS);
+  }
+
   async function startSearch() {
     await getLocalStream();
     setStatus("searching");
     setMessages([]);
+    setPartnerName(null);
+
+    const requestedSchool = universityFilter; // "all" or a UNIVERSITIES[].id
+    setSearchUniversityId(requestedSchool === "all" ? null : requestedSchool);
+
     // Server should use `university` to only pair sockets in the same pool,
     // or ignore it / pair from everyone when the value is "all".
-    socket.emit("find-match", { university: universityFilter });
+    socket.emit("find-match", { university: requestedSchool });
+
+    // If nothing turns up within the school-specific pool in time, widen
+    // the search to everyone rather than leaving the user stuck searching.
+    armFallbackTimer(requestedSchool);
   }
 
   function nextOrLeave() {
+    clearFallbackTimer();
     cleanupConnection();
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
     socket.emit("leave-chat");
@@ -319,6 +395,7 @@ export default function ChatRoom({ session }) {
   }
 
   function stopChat() {
+    clearFallbackTimer();
     cleanupConnection();
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
     if (localVideoRef.current) localVideoRef.current.srcObject = null;
@@ -326,6 +403,8 @@ export default function ChatRoom({ session }) {
     setStatus("idle");
     setMessages([]);
     setInput("");
+    setPartnerName(null);
+    setSearchUniversityId(null);
   }
 
   function sendMessage() {
@@ -585,6 +664,16 @@ export default function ChatRoom({ session }) {
                 playsInline
                 className="w-full h-full object-cover"
               />
+
+              {/* New: stranger's name label, mirrors the local video's label.
+                  Only shown once connected — falls back to "Stranger" if the
+                  server hasn't sent a partnerName yet. */}
+              {status === "connected" && (
+                <span className="absolute bottom-3 left-3 px-3 py-1 rounded-full bg-black/50 text-white text-xs font-medium max-w-[70%] truncate">
+                  {partnerName || "Stranger"}
+                </span>
+              )}
+
               {status !== "connected" && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-900/95">
                   {status === "searching" ? (
@@ -593,8 +682,8 @@ export default function ChatRoom({ session }) {
                         Looking for someone to chat with...
                       </p>
                       <p className="text-slate-500 text-xs">
-                        {selectedUniversity
-                          ? `Matching within ${selectedUniversity.name}`
+                        {searchUniversity
+                          ? `Matching within ${searchUniversity.name}`
                           : "Matching across all universities"}
                       </p>
                       <p className="text-slate-600 text-xs tabular-nums">
@@ -616,10 +705,10 @@ export default function ChatRoom({ session }) {
         <div className="shrink-0 flex flex-col items-center gap-2">
           {status !== "idle" && (
             <span className="text-white/50 text-xs font-medium">
-              {selectedUniversity ? (
+              {searchUniversity ? (
                 <span className="inline-flex items-center gap-1.5">
-                  <UniLogo school={selectedUniversity} size={14} />
-                  Matching with {selectedUniversity.name}
+                  <UniLogo school={searchUniversity} size={14} />
+                  Matching with {searchUniversity.name}
                 </span>
               ) : (
                 "Matching with all universities"
@@ -705,7 +794,11 @@ export default function ChatRoom({ session }) {
                     : "text-left chat-bubble-other"
                 }
               >
-                {m.fromSelf && !m.system ? `${displayName}: ` : ""}
+                {m.fromSelf && !m.system
+                  ? `${displayName}: `
+                  : !m.system && !m.fromSelf
+                  ? `${partnerName || "Stranger"}: `
+                  : ""}
                 {m.text}
               </div>
             ))}
