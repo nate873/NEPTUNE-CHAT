@@ -53,7 +53,7 @@ const UNIVERSITIES = [
 // How long to wait for a same-school match before we widen the search to
 // everyone. Tune this — shorter feels snappier, longer respects the filter
 // choice more strictly.
-const SCHOOL_MATCH_TIMEOUT_MS = 12000;
+const SCHOOL_MATCH_TIMEOUT_MS = 5000;
 
 export default function ChatRoom({ session }) {
   const localVideoRef = useRef(null);
@@ -376,9 +376,10 @@ export default function ChatRoom({ session }) {
     const requestedSchool = universityFilter; // "all" or a UNIVERSITIES[].id
     setSearchUniversityId(requestedSchool === "all" ? null : requestedSchool);
 
-    // Server should use `university` to only pair sockets in the same pool,
-    // or ignore it / pair from everyone when the value is "all".
-    socket.emit("find-match", { university: requestedSchool });
+    // Server pairs sockets within the same `university` pool, or with
+    // anyone when the value is "all". `displayName` is stored server-side
+    // and sent back to whoever we match with as `partnerName`.
+    socket.emit("find-match", { university: requestedSchool, displayName });
 
     // If nothing turns up within the school-specific pool in time, widen
     // the search to everyone rather than leaving the user stuck searching.
