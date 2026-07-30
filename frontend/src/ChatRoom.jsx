@@ -448,6 +448,15 @@ export default function ChatRoom({ session }) {
 
   return (
     <div className="chatroom-container h-screen w-full bg-gradient-to-br from-indigo-600 via-violet-600 to-blue-600 flex flex-col overflow-hidden relative">
+      {/* Marquee keyframes for the searching-screen logo conveyor, same
+          animation the landing page uses. */}
+      <style>{`
+        @keyframes marquee {
+          from { transform: translateX(0); }
+          to { transform: translateX(-50%); }
+        }
+      `}</style>
+
       {/* Ambient drifting orbs — subtle background motion so the screen
           doesn't feel static while idle or searching. */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -621,7 +630,8 @@ export default function ChatRoom({ session }) {
                 </div>
               )}
 
-              <span className="absolute bottom-3 left-3 px-3 py-1 rounded-full bg-black/50 text-white text-xs font-medium max-w-[70%] truncate">
+              {/* Bigger, bolder name label */}
+              <span className="absolute bottom-3 left-3 px-4 py-1.5 rounded-full bg-black/50 text-white text-lg font-semibold max-w-[70%] truncate">
                 {displayName || "You"}
               </span>
 
@@ -670,13 +680,13 @@ export default function ChatRoom({ session }) {
                   Only shown once connected — falls back to "Stranger" if the
                   server hasn't sent a partnerName yet. */}
               {status === "connected" && (
-                <span className="absolute bottom-3 left-3 px-3 py-1 rounded-full bg-black/50 text-white text-xs font-medium max-w-[70%] truncate">
+                <span className="absolute bottom-3 left-3 px-4 py-1.5 rounded-full bg-black/50 text-white text-lg font-semibold max-w-[70%] truncate">
                   {partnerName || "Stranger"}
                 </span>
               )}
 
               {status !== "connected" && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-900/95">
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-900/95 px-6">
                   {status === "searching" ? (
                     <>
                       <p className="searching-text">
@@ -687,6 +697,11 @@ export default function ChatRoom({ session }) {
                           ? `Matching within ${searchUniversity.name}`
                           : "Matching across all universities"}
                       </p>
+
+                      {/* Conveyor belt of school logos, same look/animation
+                          as the landing page's LogoConveyor. */}
+                      <SearchLogoConveyor />
+
                       <p className="text-slate-600 text-xs tabular-nums">
                         {searchSeconds}s
                       </p>
@@ -718,7 +733,10 @@ export default function ChatRoom({ session }) {
           )}
 
           {status === "idle" && (
-            <div className="flex items-center gap-4">
+            /* Unified "start bar" — the school picker and Start Chat button
+               now live inside one pill-shaped control bar instead of two
+               separate floating pieces. */
+            <div className="flex items-stretch bg-white/10 border border-white/20 rounded-full shadow-lg backdrop-blur">
               <UniversityFilterPicker
                 open={filterOpen}
                 setOpen={setFilterOpen}
@@ -726,9 +744,10 @@ export default function ChatRoom({ session }) {
                 onSelect={setUniversityFilter}
                 selectedUniversity={selectedUniversity}
               />
+              <div className="w-px my-2.5 bg-white/20" />
               <button
                 onClick={startSearch}
-                className="start-btn px-10 py-3.5 bg-yellow-400 text-indigo-900 font-bold rounded-full shadow-lg text-lg"
+                className="start-btn px-10 py-3.5 m-1 bg-yellow-400 text-indigo-900 font-bold rounded-full shadow-lg text-lg transition-all duration-200 hover:bg-yellow-300 hover:scale-105 active:scale-95"
               >
                 Start Chat
               </button>
@@ -834,12 +853,14 @@ export default function ChatRoom({ session }) {
 
 // Dropdown that lets the user pick "All Universities" or one school to
 // match within. Uses the same logo files as the landing page belt.
+// Styled "flush" so it drops into the unified start bar (no own
+// background/border — the parent bar supplies both).
 function UniversityFilterPicker({ open, setOpen, selected, onSelect, selectedUniversity }) {
   return (
-    <div className="relative">
+    <div className="relative h-full">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full pl-2.5 pr-5 py-3 transition-all duration-200"
+        className="h-full flex items-center gap-2 hover:bg-white/10 rounded-full pl-5 pr-4 py-3 transition-all duration-200"
       >
         {selectedUniversity ? (
           <>
@@ -870,7 +891,7 @@ function UniversityFilterPicker({ open, setOpen, selected, onSelect, selectedUni
       </button>
 
       {open && (
-        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-72 bg-slate-900 border border-white/10 rounded-xl shadow-xl overflow-hidden z-30">
+        <div className="absolute bottom-full mb-2 left-0 w-72 bg-slate-900 border border-white/10 rounded-xl shadow-xl overflow-hidden z-30">
           <div className="px-4 py-2.5 border-b border-white/10">
             <p className="text-white/50 text-xs font-semibold uppercase tracking-wide">
               Match with
@@ -925,6 +946,29 @@ function UniversityFilterPicker({ open, setOpen, selected, onSelect, selectedUni
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Small looping strip of school logos shown on the "searching" screen —
+// same marquee technique as the landing page's LogoConveyor, just sized
+// down to fit inside the remote video box.
+function SearchLogoConveyor() {
+  const track = [...UNIVERSITIES, ...UNIVERSITIES];
+
+  return (
+    <div className="w-full max-w-sm overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_15%,black_85%,transparent)]">
+      <div className="flex w-max items-center gap-4 [animation:marquee_16s_linear_infinite]">
+        {track.map((school, i) => (
+          <div
+            key={i}
+            className="shrink-0 w-16 h-16 rounded-full bg-white flex items-center justify-center overflow-hidden shadow-md"
+            title={school.name}
+          >
+            <UniLogo school={school} size={38} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
