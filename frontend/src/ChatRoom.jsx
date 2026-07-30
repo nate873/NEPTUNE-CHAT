@@ -447,7 +447,10 @@ export default function ChatRoom({ session }) {
   }
 
   return (
-    <div className="chatroom-container h-screen w-full bg-gradient-to-br from-indigo-600 via-violet-600 to-blue-600 flex flex-col overflow-hidden relative">
+    <div
+      className="chatroom-container h-screen w-full bg-gradient-to-br from-indigo-600 via-violet-600 to-blue-600 flex flex-col overflow-hidden relative"
+      style={{ zoom: 1.2 }}
+    >
       {/* Marquee keyframes for the searching-screen logo conveyor, same
           animation the landing page uses. */}
       <style>{`
