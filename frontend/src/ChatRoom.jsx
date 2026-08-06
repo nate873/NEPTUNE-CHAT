@@ -527,69 +527,73 @@ export default function ChatRoom({ session }) {
             </button>
 
             {menuOpen && (
-              <div className="absolute right-0 mt-2 w-72 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-30">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-                  <p className="text-white font-semibold text-sm">My Profile</p>
+              <div className="absolute right-0 mt-2 w-60 bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-30">
+                <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/10">
+                  <p className="text-white font-bold text-xs">My Profile</p>
                   <button
                     onClick={() => setMenuOpen(false)}
-                    className="text-white/40 hover:text-white text-lg leading-none transition"
+                    className="w-6 h-6 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white/70 text-sm leading-none transition-all duration-200 hover:bg-white/20 hover:text-white hover:scale-105 active:scale-95"
                   >
                     ✕
                   </button>
                 </div>
 
-                <div className="flex items-center gap-3 px-4 py-4">
-                  <span className="w-14 h-14 rounded-full bg-yellow-400 text-indigo-900 font-bold flex items-center justify-center text-xl ring-2 ring-yellow-300/60 shrink-0">
+                <div className="flex items-center gap-2.5 px-3 py-3">
+                  <span className="w-11 h-11 rounded-full bg-yellow-400 text-indigo-900 font-bold flex items-center justify-center text-base ring-2 ring-yellow-300/60 shrink-0">
                     {avatarLetter}
                   </span>
                   <div className="min-w-0">
-                    <p className="text-white font-semibold truncate">{displayName}</p>
+                    <p className="text-white font-bold text-sm truncate">{displayName}</p>
                     {shortId && (
-                      <p className="text-white/40 text-xs">ID: {shortId}</p>
+                      <p className="text-white/40 text-[10px] font-bold">ID: {shortId}</p>
                     )}
                   </div>
                 </div>
 
-                <div className="px-4 pb-4 flex flex-col gap-2">
-                  <div className="flex items-center gap-3 bg-white/5 rounded-xl px-3 py-2.5">
-                    <span className="w-8 h-8 rounded-full bg-white flex items-center justify-center overflow-hidden shrink-0">
+                <div className="px-3 pb-3 flex flex-col gap-1.5">
+                  <div className="flex items-center gap-2.5 bg-white/5 rounded-lg px-2.5 py-2">
+                    <span className="w-6 h-6 rounded-full bg-white flex items-center justify-center overflow-hidden shrink-0">
                       {userUniversity ? (
-                        <UniLogo school={userUniversity} size={18} />
+                        <UniLogo school={userUniversity} size={14} />
                       ) : (
-                        <span className="text-slate-700 text-sm">🌐</span>
+                        <span className="text-slate-700 text-xs">🌐</span>
                       )}
                     </span>
                     <div className="min-w-0">
-                      <p className="text-white/40 text-[10px] uppercase tracking-wide font-semibold">
+                      <p className="text-white/40 text-[9px] uppercase tracking-wide font-bold">
                         University
                       </p>
-                      <p className="text-white text-sm font-medium truncate">
+                      <p className="text-white text-xs font-bold truncate">
                         {userUniversity ? userUniversity.name : "Not set"}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 bg-white/5 rounded-xl px-3 py-2.5">
-                    <span className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm shrink-0">
+                  <div className="flex items-center gap-2.5 bg-white/5 rounded-lg px-2.5 py-2">
+                    <span className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-xs shrink-0">
                       ✉️
                     </span>
                     <div className="min-w-0">
-                      <p className="text-white/40 text-[10px] uppercase tracking-wide font-semibold">
+                      <p className="text-white/40 text-[9px] uppercase tracking-wide font-bold">
                         Email
                       </p>
-                      <p className="text-white text-sm font-medium truncate">
+                      <p className="text-white text-xs font-bold truncate">
                         {userEmail}
                       </p>
                     </div>
                   </div>
                 </div>
 
-                <button
-                  onClick={handleSignOut}
-                  className="w-full text-center px-4 py-3 border-t border-white/10 text-rose-400 hover:bg-white/5 transition text-sm font-semibold"
-                >
-                  Sign out
-                </button>
+                {/* Sign out — same yellow pill treatment as the landing
+                    page's primary CTA (Sign Up / Start Video Chat). */}
+                <div className="px-3 pb-3 pt-0.5 border-t border-white/10">
+                  <button
+                    onClick={handleSignOut}
+                    className="w-full px-5 py-2.5 rounded-full bg-yellow-400 text-indigo-900 text-sm font-bold shadow-md transition-all duration-200 hover:bg-yellow-300 hover:scale-105 hover:shadow-yellow-300/50 hover:shadow-lg active:scale-95"
+                  >
+                    Sign out
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -637,6 +641,16 @@ export default function ChatRoom({ session }) {
               <span className="absolute bottom-3 left-3 px-4 py-1.5 rounded-full bg-black/50 text-white text-lg font-semibold max-w-[70%] truncate">
                 {displayName || "You"}
               </span>
+
+              {/* New: your school, shown at the top of your own video box */}
+              {userUniversity && (
+                <span className="absolute top-3 left-3 flex items-center gap-1.5 pl-1.5 pr-3 py-1 rounded-full bg-black/50 text-white text-xs font-semibold">
+                  <span className="w-4 h-4 rounded-full bg-white flex items-center justify-center overflow-hidden shrink-0">
+                    <UniLogo school={userUniversity} size={10} />
+                  </span>
+                  {userUniversity.name}
+                </span>
+              )}
 
               {/* Mic / camera toggles — only useful once the camera is on */}
               {status !== "idle" && (
@@ -686,6 +700,24 @@ export default function ChatRoom({ session }) {
                 <span className="absolute bottom-3 left-3 px-4 py-1.5 rounded-full bg-black/50 text-white text-lg font-semibold max-w-[70%] truncate">
                   {partnerName || "Stranger"}
                 </span>
+              )}
+
+              {/* New: stranger's school, shown as a full-width banner across
+                  the top of their video box (their own corner badge stays
+                  small — this one is the "big" version for the other
+                  person). Best-effort — reflects the pool the match came
+                  from (searchUniversity), since we don't yet get the
+                  partner's school explicitly from the server. Only shown
+                  when that pool was a specific school, not "all". */}
+              {status === "connected" && searchUniversity && (
+                <div className="absolute top-0 left-0 right-0 flex items-center justify-center gap-2.5 py-3 bg-black/55 backdrop-blur-sm">
+                  <span className="w-7 h-7 rounded-full bg-white flex items-center justify-center overflow-hidden shrink-0">
+                    <UniLogo school={searchUniversity} size={18} />
+                  </span>
+                  <span className="text-white text-lg font-bold tracking-tight">
+                    {searchUniversity.name}
+                  </span>
+                </div>
               )}
 
               {status !== "connected" && (

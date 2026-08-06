@@ -1,6 +1,7 @@
 import { useState } from "react";
+import Nav from "./Nav";
 
-export default function LandingPage({ onGetStarted }) {
+export default function LandingPage({ onGetStarted, onAmbassadors }) {
   return (
     <div
       className="min-h-screen w-full bg-gradient-to-br from-indigo-600 via-violet-600 to-blue-600 overflow-hidden relative"
@@ -20,56 +21,13 @@ export default function LandingPage({ onGetStarted }) {
         <div className="absolute bottom-0 left-1/4 w-80 h-80 rounded-full bg-white/10 blur-3xl" />
       </div>
 
-      {/* Nav */}
-      <nav className="relative z-10 w-full px-6 md:px-10 py-4">
-        <div className="flex items-center justify-between gap-6">
-          {/* Logo — pinned to the very left edge */}
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-2xl">🔱</span>
-            <span className="text-white font-bold text-lg tracking-tight whitespace-nowrap">
-              Neptune Chat
-            </span>
-          </div>
-
-          {/* Center links */}
-          <div className="hidden md:flex items-center gap-8">
-            <a
-              href="#about"
-              className="text-white/70 text-sm font-semibold hover:text-white transition"
-            >
-              About
-            </a>
-            <a
-              href="#how-it-works"
-              className="text-white/70 text-sm font-semibold hover:text-white transition"
-            >
-              How It Works
-            </a>
-            <a
-              href="#faq"
-              className="text-white/70 text-sm font-semibold hover:text-white transition"
-            >
-              FAQ
-            </a>
-          </div>
-
-          {/* Auth buttons */}
-          <div className="flex items-center gap-3 shrink-0">
-            <button
-              onClick={() => onGetStarted("signin")}
-              className="px-5 py-2 rounded-full bg-white/10 border border-white/20 text-white text-sm font-semibold transition-all duration-200 hover:bg-white/20 hover:scale-105 active:scale-95"
-            >
-              Log In
-            </button>
-            <button
-              onClick={() => onGetStarted("signup")}
-              className="px-5 py-2 rounded-full bg-yellow-400 text-indigo-900 text-sm font-bold shadow-md transition-all duration-200 hover:bg-yellow-300 hover:scale-105 hover:shadow-yellow-300/50 hover:shadow-lg active:scale-95"
-            >
-              Sign Up
-            </button>
-          </div>
-        </div>
-      </nav>
+      {/* Nav — shared across every page. On the home page, "Video Chat" and
+          the logo both just scroll back up to the hero. */}
+      <Nav
+        onHome={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        onAmbassadors={onAmbassadors}
+        onGetStarted={onGetStarted}
+      />
 
       {/* Hero */}
       <header className="relative z-10 max-w-3xl mx-auto px-6 pt-8 pb-12 text-center">
@@ -246,6 +204,30 @@ export default function LandingPage({ onGetStarted }) {
           Based on each platform's publicly stated sign-up requirements as of
           2026. Feature availability may change over time.
         </p>
+      </section>
+
+      {/* Ambassadors teaser */}
+      <section className="relative z-10 max-w-3xl mx-auto px-6 pb-16">
+        <div className="rounded-2xl bg-white/10 border border-white/20 backdrop-blur shadow-xl p-8 md:p-10 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="text-center md:text-left">
+            <span className="inline-block text-xs font-bold uppercase tracking-widest text-yellow-300 mb-2">
+              Campus Ambassadors
+            </span>
+            <h3 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
+              Repping Neptune Chat on your campus?
+            </h3>
+            <p className="mt-2 text-white/70 text-sm md:text-base max-w-md">
+              Get perks, swag, and early features for helping other verified
+              students discover Neptune Chat.
+            </p>
+          </div>
+          <button
+            onClick={() => onAmbassadors && onAmbassadors()}
+            className="shrink-0 px-8 py-4 rounded-full bg-yellow-400 text-indigo-900 font-extrabold shadow-md transition-all duration-200 hover:bg-yellow-300 hover:scale-105 hover:shadow-yellow-300/50 hover:shadow-lg active:scale-95"
+          >
+            Meet the Ambassadors →
+          </button>
+        </div>
       </section>
 
       {/* FAQ */}
