@@ -1,5 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Nav from "./Nav";
+
+// Launch target — Aug 25, 8:00 PM, in whoever's browser opens the page (local time).
+// If you want this locked to a specific timezone (e.g. Eastern) regardless of
+// where a visitor is, swap this for an ISO string with an offset, e.g.
+// "2026-08-25T20:00:00-04:00".
+const LAUNCH_DATE = new Date(2026, 7, 25, 20, 0, 0);
 
 export default function LandingPage({ onGetStarted, onAmbassadors }) {
   return (
@@ -21,6 +27,9 @@ export default function LandingPage({ onGetStarted, onAmbassadors }) {
         <div className="absolute bottom-0 left-1/4 w-80 h-80 rounded-full bg-white/10 blur-3xl" />
       </div>
 
+      {/* Launch countdown — pinned above everything, including nav */}
+      <LaunchCountdown target={LAUNCH_DATE} />
+
       {/* Nav — shared across every page. On the home page, "Video Chat" and
           the logo both just scroll back up to the hero. */}
       <Nav
@@ -31,29 +40,10 @@ export default function LandingPage({ onGetStarted, onAmbassadors }) {
 
       {/* Hero */}
       <header className="relative z-10 max-w-3xl mx-auto px-6 pt-8 pb-12 text-center">
-        <div className="inline-flex items-center gap-2 mb-5">
-          <svg
-            viewBox="0 0 20 20"
-            fill="none"
-            className="w-6 h-6 text-emerald-300"
-          >
-            <path
-              d="M4 10.5l3.5 3.5L16 5"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <span className="text-white text-lg font-bold tracking-wide uppercase">
-            .edu verified
-          </span>
-        </div>
-
         <h1 className="text-5xl md:text-7xl font-extrabold text-white leading-[1.03] tracking-tight">
           Meet college students
           <br />
-          from around the world.
+          from around the world
         </h1>
 
         <p className="mt-6 text-lg md:text-xl text-white/70 max-w-xl mx-auto">
@@ -440,5 +430,117 @@ function FaqItem({ question, answer }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// Signature element: a top-of-page LED strip, styled like an old digital
+// clock face set into the gradient — dark recessed panel, amber tabular
+// digits with a soft glow, thin segment-style dividers. Collapses into a
+// plain "LIVE" readout once the target time passes.
+function useCountdown(target) {
+  const getRemaining = () => {
+    const diff = target.getTime() - Date.now();
+    return diff > 0 ? diff : 0;
+  };
+
+  const [remaining, setRemaining] = useState(getRemaining);
+
+  useEffect(() => {
+    const id = setInterval(() => setRemaining(getRemaining()), 1000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target]);
+
+  const totalSeconds = Math.floor(remaining / 1000);
+  return {
+    days: Math.floor(totalSeconds / 86400),
+    hours: Math.floor((totalSeconds % 86400) / 3600),
+    minutes: Math.floor((totalSeconds % 3600) / 60),
+    seconds: totalSeconds % 60,
+    isLive: remaining <= 0,
+  };
+}
+
+function LaunchCountdown({ target }) {
+  const { days, hours, minutes, seconds, isLive } = useCountdown(target);
+
+  const dateLabel = target.toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+  });
+  const timeLabel = target.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  if (isLive) {
+    return (
+      <div className="relative z-20 w-full bg-black/30 backdrop-blur-sm border-b border-white/10">
+        <div className="max-w-3xl mx-auto px-6 py-2.5 flex items-center justify-center gap-2.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
+          <span
+            className="font-mono font-bold text-sm tracking-[0.2em] uppercase text-emerald-400"
+            style={{ textShadow: "0 0 10px rgba(52,211,153,0.6)" }}
+          >
+            Neptune Chat is live
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative z-20 w-full bg-black/30 backdrop-blur-sm border-b border-white/10">
+      <div className="max-w-3xl mx-auto px-6 py-2.5 flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5">
+        <span className="text-white/40 text-[10px] sm:text-xs font-semibold tracking-widest uppercase">
+          Launching {dateLabel} · {timeLabel}
+        </span>
+
+        <div className="flex items-center rounded-md bg-black/40 border border-yellow-300/20 px-2.5 sm:px-3 py-1 shadow-[inset_0_1px_3px_rgba(0,0,0,0.5)]">
+          <LedDigits value={days} min={2} />
+          <LedLabel>d</LedLabel>
+          <LedColon />
+          <LedDigits value={hours} min={2} />
+          <LedLabel>h</LedLabel>
+          <LedColon />
+          <LedDigits value={minutes} min={2} />
+          <LedLabel>m</LedLabel>
+          <LedColon />
+          <LedDigits value={seconds} min={2} />
+          <LedLabel>s</LedLabel>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const LED_GLOW = "0 0 6px rgba(253,224,71,0.75), 0 0 14px rgba(253,224,71,0.35)";
+
+function LedDigits({ value, min }) {
+  return (
+    <span
+      className="font-mono font-bold text-sm sm:text-base text-yellow-300 tabular-nums tracking-wide"
+      style={{ textShadow: LED_GLOW }}
+    >
+      {String(value).padStart(min, "0")}
+    </span>
+  );
+}
+
+function LedLabel({ children }) {
+  return (
+    <span className="font-mono text-[9px] sm:text-[10px] text-yellow-300/50 mr-1.5 sm:mr-2">
+      {children}
+    </span>
+  );
+}
+
+function LedColon() {
+  return (
+    <span
+      className="font-mono font-bold text-sm sm:text-base text-yellow-300/40 mr-1.5 sm:mr-2 animate-pulse select-none"
+    >
+      :
+    </span>
   );
 }
