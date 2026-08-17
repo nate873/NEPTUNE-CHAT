@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Nav from "./Nav";
 
 // Launch target — Aug 25, 8:00 PM, in whoever's browser opens the page (local time).
@@ -11,21 +11,59 @@ export default function LandingPage({ onGetStarted, onAmbassadors }) {
   return (
     <div
       className="min-h-screen w-full bg-gradient-to-br from-indigo-600 via-violet-600 to-blue-600 overflow-hidden relative"
-      style={{ zoom: 1.2}}
+      style={{ zoom: 1.2 }}
     >
       <style>{`
         @keyframes marquee {
           from { transform: translateX(0); }
           to { transform: translateX(-50%); }
         }
+        @keyframes twinkle {
+          0%, 100% { opacity: 0.15; transform: scale(0.85); }
+          50% { opacity: 0.9; transform: scale(1.1); }
+        }
+        @keyframes drift {
+          0% { transform: translateY(0px); }
+          50% { transform: translateY(-14px); }
+          100% { transform: translateY(0px); }
+        }
+        @keyframes floatSlow {
+          0% { transform: translate(0px, 0px) rotate(var(--rot, 0deg)); }
+          50% { transform: translate(var(--dx, 12px), var(--dy, -18px)) rotate(var(--rot, 0deg)); }
+          100% { transform: translate(0px, 0px) rotate(var(--rot, 0deg)); }
+        }
+        @keyframes orbDrift {
+          0%, 100% { transform: translate(0px, 0px) scale(1); }
+          33% { transform: translate(30px, -40px) scale(1.08); }
+          66% { transform: translate(-25px, 25px) scale(0.95); }
+        }
       `}</style>
 
-      {/* Ambient background orbs */}
+      {/* Ambient background orbs — slow independent drift so the whole scene feels alive, not static */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-yellow-300/20 blur-3xl" />
-        <div className="absolute top-1/3 -right-32 w-[28rem] h-[28rem] rounded-full bg-cyan-300/10 blur-3xl" />
-        <div className="absolute bottom-0 left-1/4 w-80 h-80 rounded-full bg-white/10 blur-3xl" />
+        <div
+          className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-yellow-300/20 blur-3xl"
+          style={{ animation: "orbDrift 22s ease-in-out infinite" }}
+        />
+        <div
+          className="absolute top-1/3 -right-32 w-[28rem] h-[28rem] rounded-full bg-cyan-300/10 blur-3xl"
+          style={{ animation: "orbDrift 28s ease-in-out infinite reverse" }}
+        />
+        <div
+          className="absolute bottom-0 left-1/4 w-80 h-80 rounded-full bg-white/10 blur-3xl"
+          style={{ animation: "orbDrift 18s ease-in-out infinite" }}
+        />
+        <div
+          className="absolute top-1/2 left-1/2 w-64 h-64 rounded-full bg-pink-300/10 blur-3xl"
+          style={{ animation: "orbDrift 24s ease-in-out infinite reverse" }}
+        />
       </div>
+
+      {/* Scattered ghost-crest watermarks — Unilink-style texture behind the whole page */}
+      <ScatteredCrests />
+
+      {/* Twinkling star field */}
+      <StarField />
 
       {/* Launch countdown — pinned above everything, including nav */}
       <LaunchCountdown target={LAUNCH_DATE} />
@@ -38,9 +76,25 @@ export default function LandingPage({ onGetStarted, onAmbassadors }) {
         onGetStarted={onGetStarted}
       />
 
+      {/* Social rail — pinned to the left edge, like a campus bulletin strip */}
+      <SocialRail />
+
       {/* Hero */}
       <header className="relative z-10 max-w-3xl mx-auto px-6 pt-8 pb-12 text-center">
-        <h1 className="text-5xl md:text-7xl font-extrabold text-white leading-[1.03] tracking-tight">
+        <div
+          className="inline-flex items-center gap-2 rounded-full bg-black/25 border border-emerald-300/30 backdrop-blur px-4 py-1.5 mb-6"
+          style={{ boxShadow: "0 0 16px rgba(52,211,153,0.35)" }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
+          <span className="text-white/80 text-[11px] font-bold uppercase tracking-widest">
+            .edu verified students only
+          </span>
+        </div>
+
+        <h1
+          className="text-5xl md:text-7xl font-extrabold text-white leading-[1.03] tracking-tight"
+          style={{ textShadow: "0 0 30px rgba(253,224,71,0.25), 0 0 60px rgba(165,180,252,0.2)" }}
+        >
           Meet college students
           <br />
           from around the world
@@ -56,6 +110,7 @@ export default function LandingPage({ onGetStarted, onAmbassadors }) {
           <button
             onClick={() => onGetStarted("signup")}
             className="group px-12 py-5 bg-yellow-400 text-indigo-900 font-extrabold rounded-full shadow-lg transition-all duration-200 hover:bg-yellow-300 hover:scale-105 hover:shadow-yellow-300/60 hover:shadow-2xl active:scale-95 text-xl md:text-2xl"
+            style={{ boxShadow: "0 0 24px rgba(253,224,71,0.5), 0 0 60px rgba(253,224,71,0.25)" }}
           >
             <span className="inline-flex items-center gap-3">
               Start Video Chat
@@ -214,8 +269,9 @@ export default function LandingPage({ onGetStarted, onAmbassadors }) {
           <button
             onClick={() => onAmbassadors && onAmbassadors()}
             className="shrink-0 px-8 py-4 rounded-full bg-yellow-400 text-indigo-900 font-extrabold shadow-md transition-all duration-200 hover:bg-yellow-300 hover:scale-105 hover:shadow-yellow-300/50 hover:shadow-lg active:scale-95"
+            style={{ boxShadow: "0 0 18px rgba(253,224,71,0.4)" }}
           >
-            Meet the Ambassadors →
+            Apply to Be an Ambassador →
           </button>
         </div>
       </section>
@@ -282,6 +338,169 @@ const COLLEGES = [
   { name: "UCLA", logo: "/logos/ucla.png" },
   { name: "USC", logo: "/logos/usc.png" },
 ];
+
+// Deterministic-ish scatter of campus/Greek-life iconography across the
+// full page — grad caps, Greek letters, diploma scrolls, columned houses —
+// like Unilink's ghost crests, but grounded in college life instead of
+// school branding. Given a soft glow so they read as a deliberate texture
+// rather than disappearing into the gradient.
+const CAMPUS_ICONS = ["🎓", "Σ", "🎓", "Δ", "🏛️", "Ω", "🎓", "Φ", "📜", "Θ", "🎓", "Π"];
+
+function ScatteredCrests() {
+  const placements = useMemo(() => {
+    // Fixed layout (not randomized on every render) so it doesn't jitter
+    // on re-render/state changes.
+    return [
+      { top: "2%", left: "4%", rot: -12, size: "text-6xl", dx: 14, dy: -10, dur: 16 },
+      { top: "4%", left: "26%", rot: 6, size: "text-4xl", dx: -10, dy: 12, dur: 13 },
+      { top: "6%", left: "45%", rot: 8, size: "text-5xl", dx: -10, dy: 12, dur: 13 },
+      { top: "8%", left: "62%", rot: -14, size: "text-4xl", dx: 12, dy: 10, dur: 17 },
+      { top: "5%", left: "88%", rot: -8, size: "text-6xl", dx: -16, dy: -12, dur: 19 },
+      { top: "16%", left: "12%", rot: 10, size: "text-5xl", dx: 10, dy: 16, dur: 21 },
+      { top: "18%", left: "35%", rot: -9, size: "text-4xl", dx: -8, dy: 14, dur: 14 },
+      { top: "15%", left: "78%", rot: -6, size: "text-5xl", dx: -12, dy: 8, dur: 15 },
+      { top: "26%", left: "3%", rot: 14, size: "text-4xl", dx: 8, dy: -14, dur: 12 },
+      { top: "28%", left: "50%", rot: 12, size: "text-6xl", dx: -10, dy: -14, dur: 20 },
+      { top: "24%", left: "92%", rot: -10, size: "text-5xl", dx: 16, dy: 10, dur: 18 },
+      { top: "36%", left: "20%", rot: 7, size: "text-5xl", dx: -14, dy: -16, dur: 14 },
+      { top: "38%", left: "68%", rot: -8, size: "text-4xl", dx: -18, dy: 14, dur: 22 },
+      { top: "46%", left: "8%", rot: 6, size: "text-4xl", dx: 12, dy: 12, dur: 17 },
+      { top: "48%", left: "42%", rot: -14, size: "text-5xl", dx: -10, dy: -10, dur: 11 },
+      { top: "44%", left: "84%", rot: 9, size: "text-6xl", dx: 14, dy: -12, dur: 20 },
+      { top: "56%", left: "28%", rot: -6, size: "text-4xl", dx: -12, dy: 16, dur: 15 },
+      { top: "58%", left: "58%", rot: 11, size: "text-5xl", dx: 10, dy: 14, dur: 16 },
+      { top: "60%", left: "94%", rot: -10, size: "text-4xl", dx: -16, dy: 10, dur: 16 },
+      { top: "68%", left: "6%", rot: 9, size: "text-6xl", dx: 10, dy: -14, dur: 23 },
+      { top: "70%", left: "38%", rot: -12, size: "text-4xl", dx: -8, dy: 12, dur: 13 },
+      { top: "66%", left: "74%", rot: 6, size: "text-5xl", dx: 12, dy: -10, dur: 19 },
+      { top: "78%", left: "16%", rot: -8, size: "text-5xl", dx: -14, dy: 14, dur: 18 },
+      { top: "80%", left: "50%", rot: 5, size: "text-4xl", dx: 14, dy: 14, dur: 19 },
+      { top: "82%", left: "86%", rot: -8, size: "text-6xl", dx: -10, dy: -12, dur: 13 },
+      { top: "90%", left: "30%", rot: 10, size: "text-5xl", dx: 10, dy: 10, dur: 21 },
+      { top: "92%", left: "64%", rot: -6, size: "text-4xl", dx: -12, dy: -14, dur: 15 },
+      { top: "95%", left: "10%", rot: 7, size: "text-5xl", dx: 8, dy: 12, dur: 17 },
+    ];
+  }, []);
+
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden select-none">
+      {placements.map((p, i) => (
+        <span
+          key={i}
+          className={`absolute font-extrabold text-yellow-100 ${p.size}`}
+          style={{
+            top: p.top,
+            left: p.left,
+            "--rot": `${p.rot}deg`,
+            "--dx": `${p.dx}px`,
+            "--dy": `${p.dy}px`,
+            transform: `rotate(${p.rot}deg)`,
+            animation: `floatSlow ${p.dur}s ease-in-out infinite`,
+            opacity: 0.55,
+            filter:
+              "drop-shadow(0 0 6px rgba(253,224,71,0.55)) drop-shadow(0 0 16px rgba(253,224,71,0.3))",
+          }}
+        >
+          {CAMPUS_ICONS[i % CAMPUS_ICONS.length]}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// Small twinkling dots drifting across the gradient — cheap ambient texture,
+// mirrors the tiny star specks in Unilink's dark background.
+function StarField() {
+  const stars = useMemo(() => {
+    const arr = [];
+    for (let i = 0; i < 48; i++) {
+      arr.push({
+        top: `${(i * 23 + (i % 5) * 11) % 100}%`,
+        left: `${(i * 41 + (i % 7) * 9) % 100}%`,
+        delay: `${(i % 9) * 0.35}s`,
+        duration: `${2.5 + (i % 5)}s`,
+        driftDur: `${9 + (i % 6) * 2}s`,
+        dx: `${((i % 5) - 2) * 6}px`,
+        dy: `${((i % 4) - 2) * 8}px`,
+        size: i % 5 === 0 ? "w-2 h-2" : i % 3 === 0 ? "w-1.5 h-1.5" : "w-1 h-1",
+      });
+    }
+    return arr;
+  }, []);
+
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {stars.map((s, i) => (
+        <span
+          key={i}
+          className="absolute"
+          style={{
+            top: s.top,
+            left: s.left,
+            "--dx": s.dx,
+            "--dy": s.dy,
+            animation: `floatSlow ${s.driftDur} ease-in-out infinite`,
+          }}
+        >
+          <span
+            className={`block rounded-full bg-white ${s.size}`}
+            style={{
+              animation: `twinkle ${s.duration} ease-in-out ${s.delay} infinite`,
+            }}
+          />
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// Decorative social rail pinned to the left edge — swap hrefs for real
+// profiles once they exist. Hidden on small screens so it doesn't crowd
+// the mobile layout.
+const SOCIAL_LINKS = [
+  { label: "TikTok", href: "#", glyph: "♪", glow: "rgba(255,255,255,0.6)" },
+  { label: "Instagram", href: "#", icon: "instagram", glow: "rgba(232,121,249,0.85)" },
+  { label: "Discord", href: "#", glyph: "◆", glow: "rgba(129,140,248,0.85)" },
+  { label: "YouTube", href: "#", glyph: "▶", glow: "rgba(248,113,113,0.85)" },
+];
+
+function InstagramIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="2">
+      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+    </svg>
+  );
+}
+
+function SocialRail() {
+  return (
+    <div className="hidden lg:flex flex-col items-center gap-4 fixed left-6 top-1/2 -translate-y-1/2 z-20 rounded-full bg-black/25 border border-white/20 backdrop-blur px-3.5 py-5 shadow-xl">
+      <span className="text-white/70 text-[11px] font-extrabold uppercase tracking-widest mb-1">
+        Follow
+        <br />
+        Us
+      </span>
+      <span className="w-6 h-px bg-white/20" />
+      {SOCIAL_LINKS.map((s) => (
+        <a
+          key={s.label}
+          href={s.href}
+          aria-label={s.label}
+          title={s.label}
+          className="w-11 h-11 rounded-full bg-white/10 border border-white/20 backdrop-blur flex items-center justify-center text-white text-lg font-bold transition-all duration-200 hover:bg-white/20 hover:scale-110"
+          style={{
+            animation: `drift 4s ease-in-out infinite`,
+            boxShadow: `0 0 14px ${s.glow}, 0 0 4px ${s.glow}`,
+          }}
+        >
+          {s.icon === "instagram" ? <InstagramIcon /> : s.glyph}
+        </a>
+      ))}
+    </div>
+  );
+}
 
 function LogoConveyor() {
   // Track is duplicated so the belt can loop seamlessly at translateX(-50%)
@@ -496,7 +715,10 @@ function LaunchCountdown({ target }) {
           Launching {dateLabel} · {timeLabel}
         </span>
 
-        <div className="flex items-center rounded-md bg-black/40 border border-yellow-300/20 px-2.5 sm:px-3 py-1 shadow-[inset_0_1px_3px_rgba(0,0,0,0.5)]">
+        <div
+          className="flex items-center rounded-md bg-black/40 border border-yellow-300/30 px-2.5 sm:px-3 py-1 shadow-[inset_0_1px_3px_rgba(0,0,0,0.5)]"
+          style={{ boxShadow: "inset 0 1px 3px rgba(0,0,0,0.5), 0 0 12px rgba(253,224,71,0.25)" }}
+        >
           <LedDigits value={days} min={2} />
           <LedLabel>d</LedLabel>
           <LedColon />

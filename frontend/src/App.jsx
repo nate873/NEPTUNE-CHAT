@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
 import LandingPage from "./LandingPage";
 import AmbassadorsPage from "./AmbassadorsPage"; // must match your actual filename exactly
+import AmbassadorApplication from "./AmbassadorApplication";
 import EduAuth from "./EduAuth";
 import ChatRoom from "./ChatRoom";
 
@@ -18,6 +19,8 @@ function App() {
   const [authComplete, setAuthComplete] = useState(false);
   // Shows the public Ambassadors marketing page, independent of auth state.
   const [showAmbassadors, setShowAmbassadors] = useState(false);
+  // Shows the ambassador application form, reached from the Ambassadors page.
+  const [showApplication, setShowApplication] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -69,6 +72,18 @@ function App() {
     );
   }
 
+  // Ambassador application form — reached via the Ambassadors page's Apply
+  // buttons. Shown before the marketing page check below so it doesn't get
+  // swallowed by showAmbassadors being true.
+  if (showApplication) {
+    return (
+      <AmbassadorApplication
+        onBack={() => setShowApplication(false)}
+        onGetStarted={handleGetStarted}
+      />
+    );
+  }
+
   // Ambassadors page is public marketing content — show it regardless of
   // auth state, before we branch into the sign-up/chat flow below.
   if (showAmbassadors) {
@@ -76,7 +91,7 @@ function App() {
       <AmbassadorsPage
         onBack={() => setShowAmbassadors(false)}
         onGetStarted={handleGetStarted}
-        onApply={() => handleGetStarted("signup")}
+        onApply={() => setShowApplication(true)}
       />
     );
   }

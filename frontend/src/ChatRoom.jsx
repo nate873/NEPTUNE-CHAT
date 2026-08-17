@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { socket } from "./socket";
 import { supabase } from "./supabaseClient";
 import "./ChatRoom.css";
@@ -87,19 +87,27 @@ export default function ChatRoom({ session }) {
   const [partnerName, setPartnerName] = useState(null);
 
   const userEmail = session?.user?.email || "";
-  const displayName = session?.user?.user_metadata?.display_name || userEmail;
-  const avatarLetter = displayName.charAt(0).toUpperCase() || "?";
+  // `username` is the current field (set at sign-up); `display_name` is
+  // kept around for older accounts created before the username step
+  // existed, so this still resolves sensibly for them.
+  const username =
+    session?.user?.user_metadata?.username ||
+    session?.user?.user_metadata?.display_name ||
+    userEmail;
+  const avatarLetter = username.charAt(0).toUpperCase() || "?";
   // Short, stable-looking ID for the profile card, à la Monkey's "ID: 180546613"
   const shortId = session?.user?.id
     ? session.user.id.replace(/-/g, "").slice(0, 9).toUpperCase()
     : null;
 
-  // Set at sign-up (EduAuth.jsx). Older accounts created before that step
-  // existed simply won't have this, and the badge/filter fall back to "all".
+  // Set at sign-up (EduAuth.jsx). Older accounts created before these steps
+  // existed simply won't have them, and the badge/menu fall back gracefully.
   const userUniversityId = session?.user?.user_metadata?.university || null;
   const userUniversity = userUniversityId
     ? UNIVERSITIES.find((u) => u.id === userUniversityId) || null
     : null;
+  const userMajor = session?.user?.user_metadata?.major || null;
+  const userClassYear = session?.user?.user_metadata?.class_year || null;
 
   // "all" or a UNIVERSITIES[].id — which pool the user has *asked* to match
   // against. Defaults to the student's own school if they set one at sign-up.
@@ -259,7 +267,7 @@ export default function ChatRoom({ session }) {
 
   // NOTE: for `partnerName` to actually populate, the server's "matched"
   // emit needs to include it, e.g.:
-  //   socket.emit("matched", { initiator: true, partnerName: otherSocket.displayName });
+  //   socket.emit("matched", { initiator: true, partnerName: otherSocket.username });
   // Until then this safely falls back to "Stranger".
   async function handleMatched({ initiator, partnerName: incomingPartnerName }) {
     // A match happened — stop waiting for the same-school fallback timer.
@@ -377,9 +385,9 @@ export default function ChatRoom({ session }) {
     setSearchUniversityId(requestedSchool === "all" ? null : requestedSchool);
 
     // Server pairs sockets within the same `university` pool, or with
-    // anyone when the value is "all". `displayName` is stored server-side
-    // and sent back to whoever we match with as `partnerName`.
-    socket.emit("find-match", { university: requestedSchool, displayName });
+    // anyone when the value is "all". `username` is stored server-side and
+    // sent back to whoever we match with as `partnerName`.
+    socket.emit("find-match", { university: requestedSchool, username });
 
     // If nothing turns up within the school-specific pool in time, widen
     // the search to everyone rather than leaving the user stuck searching.
@@ -458,7 +466,26 @@ export default function ChatRoom({ session }) {
           from { transform: translateX(0); }
           to { transform: translateX(-50%); }
         }
+        @keyframes twinkle {
+          0%, 100% { opacity: 0.15; transform: scale(0.85); }
+          50% { opacity: 0.9; transform: scale(1.1); }
+        }
+        @keyframes floatSlow {
+          0% { transform: translate(0px, 0px) rotate(var(--rot, 0deg)); }
+          50% { transform: translate(var(--dx, 12px), var(--dy, -18px)) rotate(var(--rot, 0deg)); }
+          100% { transform: translate(0px, 0px) rotate(var(--rot, 0deg)); }
+        }
+        @keyframes connectedPulse {
+          0%, 100% { box-shadow: 0 0 0 4px rgba(52,211,153,0.5), 0 0 24px rgba(52,211,153,0.35); }
+          50% { box-shadow: 0 0 0 4px rgba(52,211,153,0.7), 0 0 36px rgba(52,211,153,0.5); }
+        }
       `}</style>
+
+      {/* Scattered campus/Greek-life iconography — same texture as the rest of the site */}
+      <ScatteredCrests />
+
+      {/* Twinkling star field — same as the rest of the site */}
+      <StarField />
 
       {/* Ambient drifting orbs — subtle background motion so the screen
           doesn't feel static while idle or searching. */}
@@ -482,9 +509,15 @@ export default function ChatRoom({ session }) {
 
       {/* Header */}
       <header className="relative shrink-0 flex items-center justify-between px-6 py-3">
-        <h1 className="text-2xl font-bold text-white tracking-tight drop-shadow">
-          🔱 Neptune Chat
-        </h1>
+        <div className="flex items-center gap-2">
+          <NeptuneIcon size={26} />
+          <h1
+            className="text-xl font-extrabold text-white tracking-tight"
+            style={{ textShadow: "0 0 14px rgba(165,180,252,0.5)" }}
+          >
+            Neptune Chat
+          </h1>
+        </div>
 
         <div className="flex items-center gap-4">
           {sessionCount > 0 && (
@@ -497,7 +530,7 @@ export default function ChatRoom({ session }) {
           <button
             onClick={() => setSoundEnabled((s) => !s)}
             title={soundEnabled ? "Mute match chime" : "Unmute match chime"}
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-sm transition"
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-sm transition-all duration-200 hover:scale-105"
           >
             {soundEnabled ? "🔊" : "🔇"}
           </button>
@@ -518,16 +551,17 @@ export default function ChatRoom({ session }) {
           <div className="relative">
             <button
               onClick={() => setMenuOpen((open) => !open)}
-              title={displayName}
-              className={`w-9 h-9 rounded-full bg-yellow-400 text-indigo-900 font-bold flex items-center justify-center text-sm ring-2 transition shadow-sm ${
+              title={username}
+              className={`w-9 h-9 rounded-full bg-yellow-400 text-indigo-900 font-bold flex items-center justify-center text-sm ring-2 transition-all duration-200 shadow-sm hover:scale-105 ${
                 menuOpen ? "ring-yellow-300" : "ring-transparent"
               }`}
+              style={{ boxShadow: "0 0 12px rgba(253,224,71,0.4)" }}
             >
               {avatarLetter}
             </button>
 
             {menuOpen && (
-              <div className="absolute right-0 mt-2 w-60 bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-30">
+              <div className="absolute right-0 mt-2 w-64 bg-slate-900/95 backdrop-blur border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-30">
                 <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/10">
                   <p className="text-white font-bold text-xs">My Profile</p>
                   <button
@@ -539,11 +573,14 @@ export default function ChatRoom({ session }) {
                 </div>
 
                 <div className="flex items-center gap-2.5 px-3 py-3">
-                  <span className="w-11 h-11 rounded-full bg-yellow-400 text-indigo-900 font-bold flex items-center justify-center text-base ring-2 ring-yellow-300/60 shrink-0">
+                  <span
+                    className="w-11 h-11 rounded-full bg-yellow-400 text-indigo-900 font-bold flex items-center justify-center text-base ring-2 ring-yellow-300/60 shrink-0"
+                    style={{ boxShadow: "0 0 14px rgba(253,224,71,0.4)" }}
+                  >
                     {avatarLetter}
                   </span>
                   <div className="min-w-0">
-                    <p className="text-white font-bold text-sm truncate">{displayName}</p>
+                    <p className="text-white font-bold text-sm truncate">@{username}</p>
                     {shortId && (
                       <p className="text-white/40 text-[10px] font-bold">ID: {shortId}</p>
                     )}
@@ -566,6 +603,35 @@ export default function ChatRoom({ session }) {
                       <p className="text-white text-xs font-bold truncate">
                         {userUniversity ? userUniversity.name : "Not set"}
                       </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-1.5">
+                    <div className="flex-1 min-w-0 flex items-center gap-2 bg-white/5 rounded-lg px-2.5 py-2">
+                      <span className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-xs shrink-0">
+                        🎓
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-white/40 text-[9px] uppercase tracking-wide font-bold">
+                          Major
+                        </p>
+                        <p className="text-white text-xs font-bold truncate">
+                          {userMajor || "Not set"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0 flex items-center gap-2 bg-white/5 rounded-lg px-2.5 py-2">
+                      <span className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-xs shrink-0">
+                        📆
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-white/40 text-[9px] uppercase tracking-wide font-bold">
+                          Year
+                        </p>
+                        <p className="text-white text-xs font-bold truncate">
+                          {userClassYear || "Not set"}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
@@ -608,9 +674,12 @@ export default function ChatRoom({ session }) {
         <div className="shrink-0 flex items-center justify-center">
           <div className="w-full max-w-7xl h-[50vh] flex flex-col lg:flex-row gap-4">
             <div
-              className={`video-box relative flex-1 min-h-0 rounded-2xl overflow-hidden shadow-xl bg-slate-900 transition-all duration-300 ${
-                status === "connected" ? "ring-4 ring-emerald-400/60" : ""
-              }`}
+              className="video-box relative flex-1 min-h-0 rounded-3xl overflow-hidden bg-slate-900 border border-white/10 transition-all duration-300"
+              style={
+                status === "connected"
+                  ? { animation: "connectedPulse 2.5s ease-in-out infinite" }
+                  : { boxShadow: "0 20px 40px -12px rgba(0,0,0,0.5)" }
+              }
             >
               <video
                 ref={localVideoRef}
@@ -638,18 +707,27 @@ export default function ChatRoom({ session }) {
               )}
 
               {/* Bigger, bolder name label */}
-              <span className="absolute bottom-3 left-3 px-4 py-1.5 rounded-full bg-black/50 text-white text-lg font-semibold max-w-[70%] truncate">
-                {displayName || "You"}
+              <span className="absolute bottom-3 left-3 px-4 py-1.5 rounded-full bg-black/50 backdrop-blur text-white text-lg font-semibold max-w-[70%] truncate">
+                @{username || "you"}
               </span>
 
-              {/* New: your school, shown at the top of your own video box */}
+              {/* Polished school badge — glass pill with major/year underneath */}
               {userUniversity && (
-                <span className="absolute top-3 left-3 flex items-center gap-1.5 pl-1.5 pr-3 py-1 rounded-full bg-black/50 text-white text-xs font-semibold">
-                  <span className="w-4 h-4 rounded-full bg-white flex items-center justify-center overflow-hidden shrink-0">
-                    <UniLogo school={userUniversity} size={10} />
+                <div className="absolute top-3 left-3 flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full bg-black/45 backdrop-blur border border-white/10">
+                  <span className="w-6 h-6 rounded-full bg-white flex items-center justify-center overflow-hidden shrink-0">
+                    <UniLogo school={userUniversity} size={16} />
                   </span>
-                  {userUniversity.name}
-                </span>
+                  <div className="leading-tight">
+                    <p className="text-white text-xs font-bold">
+                      {userUniversity.name}
+                    </p>
+                    {(userMajor || userClassYear) && (
+                      <p className="text-white/60 text-[10px] font-medium">
+                        {[userClassYear, userMajor].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
+                  </div>
+                </div>
               )}
 
               {/* Mic / camera toggles — only useful once the camera is on */}
@@ -658,7 +736,7 @@ export default function ChatRoom({ session }) {
                   <button
                     onClick={toggleMic}
                     title={micOn ? "Mute microphone" : "Unmute microphone"}
-                    className={`cam-btn w-8 h-8 rounded-full flex items-center justify-center text-sm transition ${
+                    className={`cam-btn w-9 h-9 rounded-full flex items-center justify-center text-sm transition-all duration-200 hover:scale-105 ${
                       micOn
                         ? "bg-white/15 hover:bg-white/25"
                         : "bg-rose-500/90 hover:bg-rose-500"
@@ -669,7 +747,7 @@ export default function ChatRoom({ session }) {
                   <button
                     onClick={toggleCam}
                     title={camOn ? "Turn camera off" : "Turn camera on"}
-                    className={`cam-btn w-8 h-8 rounded-full flex items-center justify-center text-sm transition ${
+                    className={`cam-btn w-9 h-9 rounded-full flex items-center justify-center text-sm transition-all duration-200 hover:scale-105 ${
                       camOn
                         ? "bg-white/15 hover:bg-white/25"
                         : "bg-rose-500/90 hover:bg-rose-500"
@@ -682,9 +760,12 @@ export default function ChatRoom({ session }) {
             </div>
 
             <div
-              className={`video-box relative flex-1 min-h-0 rounded-2xl overflow-hidden shadow-xl bg-slate-900 flex items-center justify-center transition-all duration-300 ${
-                status === "connected" ? "ring-4 ring-emerald-400/60" : ""
-              }`}
+              className="video-box relative flex-1 min-h-0 rounded-3xl overflow-hidden bg-slate-900 border border-white/10 flex items-center justify-center transition-all duration-300"
+              style={
+                status === "connected"
+                  ? { animation: "connectedPulse 2.5s ease-in-out infinite" }
+                  : { boxShadow: "0 20px 40px -12px rgba(0,0,0,0.5)" }
+              }
             >
               <video
                 ref={remoteVideoRef}
@@ -697,8 +778,8 @@ export default function ChatRoom({ session }) {
                   Only shown once connected — falls back to "Stranger" if the
                   server hasn't sent a partnerName yet. */}
               {status === "connected" && (
-                <span className="absolute bottom-3 left-3 px-4 py-1.5 rounded-full bg-black/50 text-white text-lg font-semibold max-w-[70%] truncate">
-                  {partnerName || "Stranger"}
+                <span className="absolute bottom-3 left-3 px-4 py-1.5 rounded-full bg-black/50 backdrop-blur text-white text-lg font-semibold max-w-[70%] truncate">
+                  {partnerName ? `@${partnerName}` : "Stranger"}
                 </span>
               )}
 
@@ -707,10 +788,10 @@ export default function ChatRoom({ session }) {
                   small — this one is the "big" version for the other
                   person). Best-effort — reflects the pool the match came
                   from (searchUniversity), since we don't yet get the
-                  partner's school explicitly from the server. Only shown
-                  when that pool was a specific school, not "all". */}
+                  partner's school/major/year explicitly from the server.
+                  Only shown when that pool was a specific school, not "all". */}
               {status === "connected" && searchUniversity && (
-                <div className="absolute top-0 left-0 right-0 flex items-center justify-center gap-2.5 py-3 bg-black/55 backdrop-blur-sm">
+                <div className="absolute top-0 left-0 right-0 flex items-center justify-center gap-2.5 py-3 bg-black/55 backdrop-blur-sm border-b border-white/10">
                   <span className="w-7 h-7 rounded-full bg-white flex items-center justify-center overflow-hidden shrink-0">
                     <UniLogo school={searchUniversity} size={18} />
                   </span>
@@ -771,7 +852,10 @@ export default function ChatRoom({ session }) {
             /* Unified "start bar" — the school picker and Start Chat button
                now live inside one pill-shaped control bar instead of two
                separate floating pieces. */
-            <div className="flex items-stretch bg-white/10 border border-white/20 rounded-full shadow-lg backdrop-blur">
+            <div
+              className="flex items-stretch bg-white/10 border border-white/20 rounded-full backdrop-blur"
+              style={{ boxShadow: "0 8px 30px -8px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05)" }}
+            >
               <UniversityFilterPicker
                 open={filterOpen}
                 setOpen={setFilterOpen}
@@ -782,7 +866,8 @@ export default function ChatRoom({ session }) {
               <div className="w-px my-2.5 bg-white/20" />
               <button
                 onClick={startSearch}
-                className="start-btn px-10 py-3.5 m-1 bg-yellow-400 text-indigo-900 font-bold rounded-full shadow-lg text-lg transition-all duration-200 hover:bg-yellow-300 hover:scale-105 active:scale-95"
+                className="start-btn px-10 py-3.5 m-1 bg-yellow-400 text-indigo-900 font-bold rounded-full text-lg transition-all duration-200 hover:bg-yellow-300 hover:scale-105 active:scale-95"
+                style={{ boxShadow: "0 0 20px rgba(253,224,71,0.45)" }}
               >
                 Start Chat
               </button>
@@ -808,7 +893,8 @@ export default function ChatRoom({ session }) {
             <div className="flex gap-4">
               <button
                 onClick={nextOrLeave}
-                className="next-btn px-10 py-3.5 bg-rose-500 text-white font-bold rounded-full shadow-lg text-lg"
+                className="next-btn px-10 py-3.5 bg-rose-500 text-white font-bold rounded-full text-lg transition-all duration-200 hover:bg-rose-400 hover:scale-105 active:scale-95"
+                style={{ boxShadow: "0 0 20px rgba(244,63,94,0.4)" }}
               >
                 Next ⏭
               </button>
@@ -832,7 +918,7 @@ export default function ChatRoom({ session }) {
         {/* Chat log + input — a compact strip under the videos, small enough
             that the video boxes stay the focus of the screen. */}
         <div className="shrink-0 max-w-4xl w-full mx-auto flex flex-col gap-2">
-          <div className="chat-log h-24 w-full border border-white/20 rounded-xl p-3 overflow-y-auto bg-white/10 backdrop-blur shadow-inner">
+          <div className="chat-log h-24 w-full border border-white/20 rounded-2xl p-3 overflow-y-auto bg-white/10 backdrop-blur shadow-inner">
             {messages.length === 0 && (
               <p className="text-white/50 text-sm italic">
                 Messages will show up here...
@@ -850,9 +936,9 @@ export default function ChatRoom({ session }) {
                 }
               >
                 {m.fromSelf && !m.system
-                  ? `${displayName}: `
+                  ? `@${username}: `
                   : !m.system && !m.fromSelf
-                  ? `${partnerName || "Stranger"}: `
+                  ? `${partnerName ? `@${partnerName}` : "Stranger"}: `
                   : ""}
                 {m.text}
               </div>
@@ -882,6 +968,131 @@ export default function ChatRoom({ session }) {
           </div>
         </div>
       </main>
+    </div>
+  );
+}
+
+// Stands in for the planet Neptune — a blue/cyan gradient sphere with a
+// tilted white atmospheric band, matching the icon used in Nav.jsx and
+// EduAuth.jsx so the same mark shows up everywhere in the product.
+function NeptuneIcon({ size = 26 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 40 40"
+      style={{
+        filter:
+          "drop-shadow(0 0 4px rgba(96,165,250,0.8)) drop-shadow(0 0 10px rgba(96,165,250,0.5))",
+      }}
+    >
+      <defs>
+        <radialGradient id="neptuneBodyChat" cx="35%" cy="30%" r="75%">
+          <stop offset="0%" stopColor="#7dd3fc" />
+          <stop offset="45%" stopColor="#38bdf8" />
+          <stop offset="100%" stopColor="#1d4ed8" />
+        </radialGradient>
+      </defs>
+      <ellipse cx="20" cy="26" rx="15" ry="4" fill="#ffffff" opacity="0.45" transform="rotate(-14 20 26)" />
+      <circle cx="20" cy="19" r="12" fill="url(#neptuneBodyChat)" />
+      <path d="M9 15 Q20 19 31 14" stroke="#0c4a6e" strokeWidth="1.2" opacity="0.4" fill="none" />
+      <path d="M8 22 Q20 26 32 21" stroke="#0c4a6e" strokeWidth="1" opacity="0.3" fill="none" />
+    </svg>
+  );
+}
+
+// Same scattered campus/Greek-life iconography as the rest of the site.
+const CAMPUS_ICONS = ["🎓", "Σ", "🏛️", "Δ", "📜", "Ω", "🎓", "Φ"];
+
+function ScatteredCrests() {
+  const placements = useMemo(() => {
+    return [
+      { top: "4%", left: "6%", rot: -12, size: "text-6xl", dx: 12, dy: -10, dur: 17 },
+      { top: "6%", left: "30%", rot: 8, size: "text-4xl", dx: -10, dy: 10, dur: 14 },
+      { top: "8%", left: "70%", rot: -10, size: "text-5xl", dx: -14, dy: -10, dur: 19 },
+      { top: "5%", left: "92%", rot: 9, size: "text-5xl", dx: -12, dy: 12, dur: 16 },
+      { top: "20%", left: "16%", rot: 10, size: "text-4xl", dx: 10, dy: 14, dur: 15 },
+      { top: "22%", left: "50%", rot: -7, size: "text-4xl", dx: 8, dy: -12, dur: 13 },
+      { top: "18%", left: "84%", rot: 7, size: "text-4xl", dx: -10, dy: 10, dur: 18 },
+      { top: "38%", left: "4%", rot: 6, size: "text-4xl", dx: 8, dy: -14, dur: 14 },
+      { top: "40%", left: "92%", rot: -10, size: "text-5xl", dx: -10, dy: 10, dur: 16 },
+      { top: "58%", left: "10%", rot: -8, size: "text-4xl", dx: 10, dy: -10, dur: 15 },
+      { top: "60%", left: "90%", rot: 12, size: "text-4xl", dx: -12, dy: 12, dur: 17 },
+      { top: "76%", left: "14%", rot: -8, size: "text-5xl", dx: 10, dy: -12, dur: 20 },
+      { top: "74%", left: "48%", rot: 6, size: "text-3xl", dx: -8, dy: 10, dur: 12 },
+      { top: "80%", left: "82%", rot: 9, size: "text-5xl", dx: -12, dy: 12, dur: 18 },
+      { top: "92%", left: "24%", rot: 5, size: "text-4xl", dx: 10, dy: 10, dur: 13 },
+      { top: "94%", left: "60%", rot: -6, size: "text-4xl", dx: -10, dy: -10, dur: 15 },
+    ];
+  }, []);
+
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden select-none">
+      {placements.map((p, i) => (
+        <span
+          key={i}
+          className={`absolute font-extrabold text-yellow-100 ${p.size}`}
+          style={{
+            top: p.top,
+            left: p.left,
+            "--rot": `${p.rot}deg`,
+            "--dx": `${p.dx}px`,
+            "--dy": `${p.dy}px`,
+            transform: `rotate(${p.rot}deg)`,
+            animation: `floatSlow ${p.dur}s ease-in-out infinite`,
+            opacity: 0.6,
+            filter:
+              "drop-shadow(0 0 8px rgba(253,224,71,0.6)) drop-shadow(0 0 20px rgba(253,224,71,0.35))",
+          }}
+        >
+          {CAMPUS_ICONS[i % CAMPUS_ICONS.length]}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// Same twinkling star field as the rest of the site.
+function StarField() {
+  const stars = useMemo(() => {
+    const arr = [];
+    for (let i = 0; i < 40; i++) {
+      arr.push({
+        top: `${(i * 23 + (i % 5) * 11) % 100}%`,
+        left: `${(i * 41 + (i % 7) * 9) % 100}%`,
+        delay: `${(i % 9) * 0.35}s`,
+        duration: `${2.5 + (i % 5)}s`,
+        driftDur: `${9 + (i % 6) * 2}s`,
+        dx: `${((i % 5) - 2) * 6}px`,
+        dy: `${((i % 4) - 2) * 8}px`,
+        size: i % 5 === 0 ? "w-2 h-2" : i % 3 === 0 ? "w-1.5 h-1.5" : "w-1 h-1",
+      });
+    }
+    return arr;
+  }, []);
+
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {stars.map((s, i) => (
+        <span
+          key={i}
+          className="absolute"
+          style={{
+            top: s.top,
+            left: s.left,
+            "--dx": s.dx,
+            "--dy": s.dy,
+            animation: `floatSlow ${s.driftDur} ease-in-out infinite`,
+          }}
+        >
+          <span
+            className={`block rounded-full bg-white ${s.size}`}
+            style={{
+              animation: `twinkle ${s.duration} ease-in-out ${s.delay} infinite`,
+            }}
+          />
+        </span>
+      ))}
     </div>
   );
 }
