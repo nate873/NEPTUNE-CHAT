@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
 import LandingPage from "./LandingPage";
 import AmbassadorsPage from "./AmbassadorsPage"; // must match your actual filename exactly
-import AmbassadorApplication from "./AmbassadorApplication";
+import AmbassadorApplication from "./AmbassadorApplication"; // must match your actual filename exactly
 import EduAuth from "./EduAuth";
 import ChatRoom from "./ChatRoom";
 

@@ -102,7 +102,7 @@ export default function LandingPage({ onGetStarted, onAmbassadors }) {
 
         <p className="mt-6 text-lg md:text-xl text-white/70 max-w-xl mx-auto">
           Neptune Chat pairs you with a random verified college student for
-          live video and text — no profiles, no swiping, just a real
+          live video and text. No profiles, no swiping, just a real
           conversation.
         </p>
 
