@@ -5,7 +5,7 @@ import Nav from "./Nav";
 // If you want this locked to a specific timezone (e.g. Eastern) regardless of
 // where a visitor is, swap this for an ISO string with an offset, e.g.
 // "2026-09-03T20:00:00-04:00".
-const LAUNCH_DATE = new Date(2026, 8, 3, 20, 0, 0);
+const LAUNCH_DATE = new Date(2026, 8, 6, 20, 0, 0);
 
 // Date the 8–11pm daily restriction starts being enforced. Before this
 // date the site is always open. From this date on, it's only reachable
@@ -149,7 +149,7 @@ export default function LandingPage({ onGetStarted, onAmbassadors }) {
           >
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
             <span className="text-white/80 text-[11px] font-bold uppercase tracking-widest">
-              Random video chat
+              College Student Verified
             </span>
           </div>
 
