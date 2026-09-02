@@ -55,6 +55,47 @@ const UNIVERSITIES = [
 // choice more strictly.
 const SCHOOL_MATCH_TIMEOUT_MS = 5000;
 
+// ---------------------------------------------------------------------------
+// Launch / nightly window gate — mirrors the same rule enforced server-side
+// in server.js's `find-match` handler. This copy is for UI purposes only
+// (showing the right screen/button state); the server is what actually
+// blocks matching, so if these two ever drift apart the server wins.
+// ---------------------------------------------------------------------------
+const LAUNCH_AT = new Date("2026-09-06T20:00:00-04:00"); // Sept 6, 8:00 PM ET
+const LIVE_START_HOUR_ET = 20; // 8 PM
+const LIVE_END_HOUR_ET = 3; // 3 AM (next day) — window wraps past midnight
+
+function isChatLive(now = new Date()) {
+  if (now < LAUNCH_AT) return false;
+
+  const etHour = parseInt(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      hour: "2-digit",
+      hour12: false,
+    }).format(now),
+    10
+  );
+
+  // Window wraps past midnight (8 PM -> 3 AM), so "live" means either
+  // "at or after 8 PM" OR "before 3 AM" — not a simple between-check.
+  return etHour >= LIVE_START_HOUR_ET || etHour < LIVE_END_HOUR_ET;
+}
+
+// Small helper for the pre-launch message — formats the countdown target
+// in a friendly way without pulling in a date library.
+function formatLaunchLabel() {
+  return LAUNCH_AT.toLocaleString("en-US", {
+    timeZone: "America/New_York",
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
+}
+
 export default function ChatRoom({ session }) {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -85,6 +126,9 @@ export default function ChatRoom({ session }) {
 
   // --- New: partner identity for the current/most recent match ---
   const [partnerName, setPartnerName] = useState(null);
+
+  // --- New: whether chat is currently allowed to start (launch gate) ---
+  const [chatLive, setChatLive] = useState(() => isChatLive());
 
   const userEmail = session?.user?.email || "";
   // `username` is the current field (set at sign-up); `display_name` is
@@ -178,17 +222,31 @@ export default function ChatRoom({ session }) {
     statusRef.current = status;
   }, [status]);
 
+  // --- New: recheck the launch/window gate periodically so the screen
+  // flips automatically at 8 PM ET without needing a page refresh. ---
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setChatLive(isChatLive());
+    }, 15000); // recheck every 15s — cheap and responsive enough
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     socket.on("matched", handleMatched);
     socket.on("signal", handleSignal);
     socket.on("chat-message", handleChatMessage);
     socket.on("partner-left", handlePartnerLeft);
+    // New: server-side rejection when find-match is called outside the
+    // allowed window (belt-and-suspenders — the client-side chatLive check
+    // above should normally prevent this from ever firing).
+    socket.on("status", handleStatus);
 
     return () => {
       socket.off("matched", handleMatched);
       socket.off("signal", handleSignal);
       socket.off("chat-message", handleChatMessage);
       socket.off("partner-left", handlePartnerLeft);
+      socket.off("status", handleStatus);
       cleanupConnection();
       if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
       if (searchIntervalRef.current) clearInterval(searchIntervalRef.current);
@@ -334,6 +392,20 @@ export default function ChatRoom({ session }) {
     startSearch(); // automatically look for a new match — also clears messages
   }
 
+  // --- New: handles the generic "status" channel from the server,
+  // specifically the "chat-unavailable" case sent when find-match is
+  // rejected because we're outside the launch/nightly window. ---
+  function handleStatus({ status: statusName, message } = {}) {
+    if (statusName === "chat-unavailable") {
+      setChatLive(false);
+      setStatus("idle");
+      showToast(
+        message || "Chat isn't live right now — check back during our nightly window.",
+        "info"
+      );
+    }
+  }
+
   function cleanupConnection() {
     if (pcRef.current) {
       pcRef.current.close();
@@ -376,6 +448,18 @@ export default function ChatRoom({ session }) {
   }
 
   async function startSearch() {
+    // Client-side gate — mirrors the server's rule so people see a clear
+    // message instead of a button that silently does nothing. The server
+    // is the real enforcement point; this is just the UI shortcut.
+    if (!isChatLive()) {
+      setChatLive(false);
+      showToast(
+        `Neptune Chat launches ${formatLaunchLabel()}.`,
+        "info"
+      );
+      return;
+    }
+
     await getLocalStream();
     setStatus("searching");
     setMessages([]);
@@ -822,6 +906,19 @@ export default function ChatRoom({ session }) {
                         {searchSeconds}s
                       </p>
                     </>
+                  ) : status === "idle" && !chatLive ? (
+                    // --- New: pre-launch / outside-window message shown in
+                    // place of "Stranger will appear here" ---
+                    <div className="flex flex-col items-center gap-2 text-center">
+                      <span className="text-3xl">🚀</span>
+                      <p className="text-white font-bold text-lg">
+                        We're not live yet
+                      </p>
+                      <p className="text-slate-400 text-sm max-w-xs">
+                        Neptune Chat launches {formatLaunchLabel()}, then runs
+                        nightly from 8 PM–3 AM ET.
+                      </p>
+                    </div>
                   ) : (
                     <p className="text-slate-400 font-medium">
                       Stranger will appear here
@@ -848,10 +945,11 @@ export default function ChatRoom({ session }) {
             </span>
           )}
 
-          {status === "idle" && (
+          {status === "idle" && chatLive && (
             /* Unified "start bar" — the school picker and Start Chat button
                now live inside one pill-shaped control bar instead of two
-               separate floating pieces. */
+               separate floating pieces. Only shown once the launch/nightly
+               window is actually open. */
             <div
               className="flex items-stretch bg-white/10 border border-white/20 rounded-full backdrop-blur"
               style={{ boxShadow: "0 8px 30px -8px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05)" }}
@@ -873,6 +971,24 @@ export default function ChatRoom({ session }) {
               </button>
             </div>
           )}
+
+          {status === "idle" && !chatLive && (
+            /* --- New: replaces the start bar entirely before launch / outside
+               the nightly window. No button at all — nothing to click that
+               would trigger a doomed find-match call. --- */
+            <div
+              className="flex flex-col items-center gap-1 px-8 py-3.5 bg-white/10 border border-white/20 rounded-full backdrop-blur text-center"
+              style={{ boxShadow: "0 8px 30px -8px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05)" }}
+            >
+              <span className="text-white font-bold text-sm">
+                🔒 Chat opens {formatLaunchLabel()}
+              </span>
+              <span className="text-white/60 text-xs">
+                Then live nightly, 8 PM–3 AM ET
+              </span>
+            </div>
+          )}
+
           {status === "searching" && (
             <div className="flex gap-4">
               <button
