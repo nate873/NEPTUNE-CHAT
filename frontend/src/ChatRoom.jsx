@@ -61,7 +61,7 @@ const SCHOOL_MATCH_TIMEOUT_MS = 5000;
 // (showing the right screen/button state); the server is what actually
 // blocks matching, so if these two ever drift apart the server wins.
 // ---------------------------------------------------------------------------
-const LAUNCH_AT = new Date("2026-09-06T20:00:00-04:00"); // Sept 6, 8:00 PM ET
+const LAUNCH_AT = new Date("2026-09-04T20:00:00-04:00"); // Sept 6, 8:00 PM ET
 const LIVE_START_HOUR_ET = 20; // 8 PM
 const LIVE_END_HOUR_ET = 3; // 3 AM (next day) — window wraps past midnight
 
