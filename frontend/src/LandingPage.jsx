@@ -183,7 +183,7 @@ function NeptuneIcon({ size = 26 }) {
 // as the open landing page — same gradient, orbs, crests, star field, hero
 // type scale and LED countdown panel — so it reads as the same product
 // taking a break, not as an error page.
-function ClosedScreen({ now }) {
+function ClosedScreen({ now, onGetStarted }) {
   const msLeft = getMsUntilNextOpenET(now);
 
   return (
@@ -237,7 +237,7 @@ function ClosedScreen({ now }) {
             <span className="text-white font-semibold">
               8:00 PM to 3:00 AM Eastern
             </span>
-            . Come back tonight and meet someone new.
+            . Join the wait party now, get your account ready, and come back when chat opens.
           </p>
 
           {/* Same recessed LED panel as the launch countdown strip */}
@@ -257,6 +257,38 @@ function ClosedScreen({ now }) {
             >
               {formatDuration(msLeft)}
             </span>
+          </div>
+
+          {/* Closed-hours auth actions — account creation and sign-in stay available
+              even though random matching is disabled until the nightly window opens. */}
+          <div className="mt-6 flex flex-col items-center gap-3">
+            <button
+              onClick={() => onGetStarted?.("signup")}
+              className="group px-10 py-4 bg-yellow-400 text-indigo-900 font-extrabold rounded-full shadow-lg transition-all duration-200 hover:bg-yellow-300 hover:scale-105 hover:shadow-yellow-300/60 hover:shadow-2xl active:scale-95 text-lg md:text-xl"
+              style={{
+                boxShadow:
+                  "0 0 24px rgba(253,224,71,0.5), 0 0 60px rgba(253,224,71,0.20)",
+              }}
+            >
+              <span className="inline-flex items-center gap-2">
+                🎉 Join the Wait Party
+                <span className="inline-block transition-transform duration-200 group-hover:translate-x-1">
+                  →
+                </span>
+              </span>
+            </button>
+
+            <p className="text-white/50 text-sm max-w-sm mx-auto">
+              Sign up and verify your college email now so you're ready when
+              Neptune opens.
+            </p>
+
+            <button
+              onClick={() => onGetStarted?.("login")}
+              className="text-white/75 hover:text-white text-sm font-semibold underline underline-offset-4 transition-colors"
+            >
+              Already have an account? Sign in
+            </button>
           </div>
         </div>
       </div>
@@ -283,7 +315,7 @@ export default function LandingPage({ onGetStarted, onAmbassadors }) {
   const withinWindow = isWithinNightlyWindow(now);
 
   if (enforcementActive && !withinWindow) {
-    return <ClosedScreen now={now} />;
+    return <ClosedScreen now={now} onGetStarted={onGetStarted} />;
   }
 
   return (
