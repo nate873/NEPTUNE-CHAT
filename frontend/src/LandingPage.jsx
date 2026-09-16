@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import Nav from "./Nav";
+import Footer from "./Footer";
 
 // Launch has already happened — this stays in the past so the top banner
 // renders its "Neptune Chat is live" state instead of a countdown. The
@@ -18,6 +19,194 @@ const LAUNCH_DATE = new Date(2026, 8, 4, 20, 0, 0);
 const ENFORCEMENT_START = new Date(2026, 8, 3, 0, 0, 0);
 const OPEN_HOUR_ET = 20; // 8:00 PM ET
 const CLOSE_HOUR_ET = 3; // 3:00 AM ET (next day) — window wraps past midnight
+
+
+// -----------------------------------------------------------------------------
+// SEO + GEO CONTENT CONFIG
+// -----------------------------------------------------------------------------
+// Keep the core description concise and factual. These values are reused in
+// page metadata and structured data so search engines and AI answer engines see
+// the same description visitors see on the page.
+const SITE_URL = "https://neptunechat.app/";
+const SITE_NAME = "Neptune Chat";
+const SEO_TITLE = "Random Video Chat for College Students | Neptune Chat";
+const SEO_DESCRIPTION =
+  "Neptune Chat is a random video chat platform for verified college students. Meet students from colleges and universities through live video and text conversations.";
+
+const FAQ_ITEMS = [
+  {
+    question: "What is Neptune Chat?",
+    answer:
+      "Neptune Chat is a random video chat platform built for college students. It pairs verified students for live video and text conversations without profiles or swiping.",
+  },
+  {
+    question: "Who is Neptune Chat for?",
+    answer:
+      "Neptune Chat is designed for current college and university students. Accounts are verified with a college or university .edu email before chatting is enabled.",
+  },
+  {
+    question: "What hours is Neptune Chat open?",
+    answer:
+      "Neptune Chat matching runs every night from 8:00 PM to 3:00 AM Eastern. Outside those hours, students can still visit the site, create an account, and get ready for the next opening.",
+  },
+  {
+    question: "Do I need a .edu email to use Neptune Chat?",
+    answer:
+      "Yes. Neptune Chat uses a college or university .edu email to verify student accounts before they can start chatting.",
+  },
+  {
+    question: "Is Neptune Chat an Omegle alternative for college students?",
+    answer:
+      "Neptune Chat is a college-focused random video chat service for people looking for spontaneous conversations with other verified students. Unlike a general open-internet chat room, Neptune Chat is built specifically around the college community.",
+  },
+  {
+    question: "Is matching really random?",
+    answer:
+      "Yes. Neptune Chat pairs you with the next available verified student in the queue. There are no dating-style profiles, swiping, or popularity scores involved in the match.",
+  },
+  {
+    question: "Can I use text chat instead of video?",
+    answer:
+      "Video and text are available in the same conversation. You can type messages while chatting and use the camera controls available in the chat room.",
+  },
+  {
+    question: "What if I want to leave a conversation?",
+    answer:
+      "Use Next to end the current conversation and look for another match, or Stop to leave the matching queue.",
+  },
+  {
+    question: "How does Neptune Chat approach safety?",
+    answer:
+      "Neptune Chat limits chatting to verified college accounts and lets students leave a conversation immediately. Additional reporting and community-safety tools can be added as the platform grows.",
+  },
+];
+
+function ensureMetaTag(selector, attrs) {
+  let el = document.head.querySelector(selector);
+  if (!el) {
+    el = document.createElement("meta");
+    document.head.appendChild(el);
+  }
+  Object.entries(attrs).forEach(([key, value]) => el.setAttribute(key, value));
+  return el;
+}
+
+function ensureCanonical(url) {
+  let link = document.head.querySelector('link[rel="canonical"]');
+  if (!link) {
+    link = document.createElement("link");
+    link.setAttribute("rel", "canonical");
+    document.head.appendChild(link);
+  }
+  link.setAttribute("href", url);
+}
+
+function useLandingSEO() {
+  useEffect(() => {
+    document.title = SEO_TITLE;
+
+    ensureMetaTag('meta[name="description"]', {
+      name: "description",
+      content: SEO_DESCRIPTION,
+    });
+    ensureMetaTag('meta[name="robots"]', {
+      name: "robots",
+      content: "index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1",
+    });
+    ensureMetaTag('meta[name="googlebot"]', {
+      name: "googlebot",
+      content: "index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1",
+    });
+
+    ensureMetaTag('meta[property="og:title"]', {
+      property: "og:title",
+      content: SEO_TITLE,
+    });
+    ensureMetaTag('meta[property="og:description"]', {
+      property: "og:description",
+      content: SEO_DESCRIPTION,
+    });
+    ensureMetaTag('meta[property="og:type"]', {
+      property: "og:type",
+      content: "website",
+    });
+    ensureMetaTag('meta[property="og:url"]', {
+      property: "og:url",
+      content: SITE_URL,
+    });
+    ensureMetaTag('meta[property="og:site_name"]', {
+      property: "og:site_name",
+      content: SITE_NAME,
+    });
+    ensureMetaTag('meta[name="twitter:card"]', {
+      name: "twitter:card",
+      content: "summary_large_image",
+    });
+    ensureMetaTag('meta[name="twitter:title"]', {
+      name: "twitter:title",
+      content: SEO_TITLE,
+    });
+    ensureMetaTag('meta[name="twitter:description"]', {
+      name: "twitter:description",
+      content: SEO_DESCRIPTION,
+    });
+
+    ensureCanonical(SITE_URL);
+
+    const structuredData = {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": `${SITE_URL}#organization`,
+          name: SITE_NAME,
+          legalName: "The Neptune Way LLC",
+          url: SITE_URL,
+          description: SEO_DESCRIPTION,
+        },
+        {
+          "@type": "WebSite",
+          "@id": `${SITE_URL}#website`,
+          url: SITE_URL,
+          name: SITE_NAME,
+          description: SEO_DESCRIPTION,
+          publisher: { "@id": `${SITE_URL}#organization` },
+        },
+        {
+          "@type": "WebPage",
+          "@id": `${SITE_URL}#webpage`,
+          url: SITE_URL,
+          name: SEO_TITLE,
+          description: SEO_DESCRIPTION,
+          isPartOf: { "@id": `${SITE_URL}#website` },
+          about: { "@id": `${SITE_URL}#organization` },
+        },
+        {
+          "@type": "FAQPage",
+          "@id": `${SITE_URL}#faq`,
+          mainEntity: FAQ_ITEMS.map((item) => ({
+            "@type": "Question",
+            name: item.question,
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: item.answer,
+            },
+          })),
+        },
+      ],
+    };
+
+    const scriptId = "neptune-home-structured-data";
+    let script = document.getElementById(scriptId);
+    if (!script) {
+      script = document.createElement("script");
+      script.id = scriptId;
+      script.type = "application/ld+json";
+      document.head.appendChild(script);
+    }
+    script.textContent = JSON.stringify(structuredData);
+  }, []);
+}
 
 // Pulls the current wall-clock hour/minute/second in America/New_York out of
 // a Date, regardless of the visitor's own timezone.
@@ -183,7 +372,7 @@ function NeptuneIcon({ size = 26 }) {
 // as the open landing page — same gradient, orbs, crests, star field, hero
 // type scale and LED countdown panel — so it reads as the same product
 // taking a break, not as an error page.
-function ClosedScreen({ now, onGetStarted }) {
+function ClosedScreen({ now, onGetStarted, onAmbassadors }) {
   const msLeft = getMsUntilNextOpenET(now);
 
   return (
@@ -293,17 +482,84 @@ function ClosedScreen({ now, onGetStarted }) {
         </div>
       </div>
 
-      <footer className="relative z-10 text-center pb-10">
-        <p className="text-white/40 text-xs">
-          © 2026 The Neptune Way LLC, A Florida Limited Liability Company. All
-          rights reserved.
-        </p>
-      </footer>
+      <ClosedSEOContent />
+
+      <Footer
+        onHome={() =>
+          window.scrollTo({
+            top: 0,
+            behavior: "smooth",
+          })
+        }
+        onAmbassadors={onAmbassadors}
+        onGetStarted={onGetStarted}
+      />
     </div>
   );
 }
 
+
+function ClosedSEOContent() {
+  return (
+    <main className="relative z-10 w-full pb-16" aria-label="About Neptune Chat">
+      <section className="max-w-3xl mx-auto px-6 py-12 text-center border-t border-white/10">
+        <span className="inline-block text-xs font-bold uppercase tracking-widest text-yellow-300 mb-3">
+          Random video chat for college students
+        </span>
+        <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
+          Neptune Chat is still here while matching is closed
+        </h2>
+        <p className="mt-5 text-white/70 text-base md:text-lg leading-relaxed">
+          Neptune Chat is a random video chat platform for verified college and
+          university students. Student matching runs nightly, but you can learn
+          how the platform works and prepare your account at any time.
+        </p>
+      </section>
+
+      <section className="max-w-4xl mx-auto px-6 pb-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <InfoCard
+            eyebrow="Verify"
+            title="College email required"
+            body="Neptune Chat uses a college or university .edu email to verify student accounts before chat access is enabled."
+          />
+          <InfoCard
+            eyebrow="Match"
+            title="Random student conversations"
+            body="When matching is live, students enter a queue and are paired with another available verified college student."
+          />
+          <InfoCard
+            eyebrow="Talk"
+            title="Video and text"
+            body="The chat experience supports live conversation with video and text in the same session."
+          />
+        </div>
+      </section>
+
+      <section className="max-w-2xl mx-auto px-6 pb-8" aria-labelledby="closed-faq-heading">
+        <h2
+          id="closed-faq-heading"
+          className="text-2xl md:text-3xl font-extrabold text-white tracking-tight text-center mb-8"
+        >
+          Frequently asked questions
+        </h2>
+        <div className="flex flex-col gap-3">
+          {FAQ_ITEMS.slice(0, 5).map((item) => (
+            <FaqItem
+              key={item.question}
+              question={item.question}
+              answer={item.answer}
+            />
+          ))}
+        </div>
+      </section>
+    </main>
+  );
+}
+
 export default function LandingPage({ onGetStarted, onAmbassadors }) {
+  useLandingSEO();
+
   // Ticks once a second so the open/closed check and countdown stay live.
   const [now, setNow] = useState(new Date());
   useEffect(() => {
@@ -315,7 +571,13 @@ export default function LandingPage({ onGetStarted, onAmbassadors }) {
   const withinWindow = isWithinNightlyWindow(now);
 
   if (enforcementActive && !withinWindow) {
-    return <ClosedScreen now={now} onGetStarted={onGetStarted} />;
+    return (
+      <ClosedScreen
+        now={now}
+        onGetStarted={onGetStarted}
+        onAmbassadors={onAmbassadors}
+      />
+    );
   }
 
   return (
@@ -348,6 +610,7 @@ export default function LandingPage({ onGetStarted, onAmbassadors }) {
       {/* Social rail — pinned to the left edge, like a campus bulletin strip */}
       <SocialRail />
 
+      <main id="main-content">
       {/* Hero */}
       <header className="relative z-10 max-w-3xl mx-auto px-6 pt-8 pb-12 text-center">
         <div
@@ -367,15 +630,16 @@ export default function LandingPage({ onGetStarted, onAmbassadors }) {
               "0 0 30px rgba(253,224,71,0.25), 0 0 60px rgba(165,180,252,0.2)",
           }}
         >
-          Meet college students
+          Random video chat for college students
           <br />
-          from around the world
+          <span className="text-yellow-300">Meet verified students from other campuses</span>
         </h1>
 
         <p className="mt-6 text-lg md:text-xl text-white/70 max-w-xl mx-auto">
-          Neptune Chat pairs you with a random verified college student for
-          live video and text. No profiles, no swiping, just a real
-          conversation.
+          Neptune Chat is a college-focused random video chat platform that
+          pairs verified students for live video and text conversations. No
+          dating profiles, no swiping — just a spontaneous conversation with
+          another college student.
         </p>
 
         {/* Nightly-hours note — sets the expectation before someone taps in
@@ -420,122 +684,160 @@ export default function LandingPage({ onGetStarted, onAmbassadors }) {
       {/* Logo conveyor belt */}
       <LogoConveyor />
 
-      {/* About */}
+      {/* Direct-answer section: useful to visitors, search engines, and AI answer engines */}
       <section
         id="about"
-        className="relative z-10 max-w-2xl mx-auto px-6 pb-16 text-center scroll-mt-24"
+        className="relative z-10 max-w-3xl mx-auto px-6 pb-16 text-center scroll-mt-24"
+        aria-labelledby="what-is-neptune"
       >
-        <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
-          About Neptune Chat
+        <span className="inline-block text-xs font-bold uppercase tracking-widest text-yellow-300 mb-3">
+          What is Neptune Chat?
+        </span>
+        <h2
+          id="what-is-neptune"
+          className="text-3xl md:text-4xl font-extrabold text-white tracking-tight"
+        >
+          A random video chat platform built for college students
         </h2>
-        <p className="mt-4 text-white/70 text-sm md:text-base leading-relaxed">
-          Neptune Chat was built for one simple reason: campus is full of
-          people you haven't met yet. Instead of another swipe-based app, we
-          made a space where verified students can jump on video or text with
-          someone new in seconds — no profile to build, no matching
-          algorithm, just a real conversation with someone else on campus.
+        <p className="mt-5 text-white/75 text-base md:text-lg leading-relaxed max-w-2xl mx-auto">
+          Neptune Chat connects verified college and university students through
+          random one-on-one video and text conversations. It is designed for
+          students who want to meet someone new without building a profile,
+          swiping through people, or turning every interaction into a dating app.
+        </p>
+        <p className="mt-4 text-white/60 text-sm md:text-base leading-relaxed max-w-2xl mx-auto">
+          The idea is simple: verify your student email, enter the live queue,
+          and get matched with another available college student. If the
+          conversation is not for you, move on and meet someone else.
         </p>
       </section>
 
-      {/* Features */}
+      {/* How it works */}
       <section
         id="how-it-works"
-        className="relative z-10 max-w-4xl mx-auto px-6 pb-16 grid grid-cols-1 md:grid-cols-3 gap-5 scroll-mt-24"
+        className="relative z-10 max-w-4xl mx-auto px-6 pb-16 scroll-mt-24"
+        aria-labelledby="how-neptune-works"
       >
-        <FeatureCard
-          icon="🎓"
-          title=".edu verified"
-          body="Every account is confirmed with a real college email, so you're always talking to another student."
-        />
-        <FeatureCard
-          icon="🎥"
-          title="Video + text"
-          body="Jump on camera or keep it typed — switch however you're comfortable in the moment."
-        />
-        <FeatureCard
-          icon="⏭️"
-          title="Next, anytime"
-          body="Not vibing? Hit Next and you're instantly paired with someone else. No awkward goodbyes."
-        />
-      </section>
-
-      {/* Comparison table */}
-      <section className="relative z-10 max-w-3xl mx-auto px-6 pb-16">
         <div className="text-center mb-8">
-          <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
-            Why Neptune Chat is different
+          <span className="inline-block text-xs font-bold uppercase tracking-widest text-yellow-300 mb-3">
+            How it works
+          </span>
+          <h2
+            id="how-neptune-works"
+            className="text-3xl md:text-4xl font-extrabold text-white tracking-tight"
+          >
+            Meet another college student in three steps
           </h2>
-          <p className="mt-3 text-white/60 max-w-lg mx-auto text-sm">
-            Built specifically for verified college students, not the open
-            internet.
+          <p className="mt-3 text-white/60 max-w-2xl mx-auto text-sm md:text-base">
+            Neptune Chat keeps random college video chat simple: verify, enter
+            the queue, and start a conversation.
           </p>
         </div>
 
-        <p className="text-white/70 text-sm max-w-xl mx-auto text-center mb-6 leading-relaxed">
-          Most random chat apps let anyone sign up with just an email
-          address. Neptune Chat requires a verified college email before
-          you can talk to anyone, so here's how that compares to a few
-          well-known alternatives.
-        </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <FeatureCard
+            icon="🎓"
+            title="1. Verify your college email"
+            body="Create your account with a college or university .edu email so Neptune Chat can confirm you are part of the student community."
+          />
+          <FeatureCard
+            icon="🎥"
+            title="2. Start video or text chat"
+            body="Enter the live matching queue and get paired with another available verified college student for video and text."
+          />
+          <FeatureCard
+            icon="⏭️"
+            title="3. Meet someone new"
+            body="Want a different conversation? Use Next to leave the current match and look for another verified student."
+          />
+        </div>
+      </section>
 
-        <div className="rounded-2xl bg-white/10 border border-white/20 backdrop-blur shadow-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-white/10">
-                  <th className="py-4 px-5 text-white/50 font-semibold uppercase text-xs tracking-wide">
-                    Feature
-                  </th>
-                  <th className="py-4 px-5 text-yellow-300 font-bold text-base">
-                    Neptune Chat
-                  </th>
-                  <th className="py-4 px-5 text-white/50 font-semibold">
-                    Ome.tv
-                  </th>
-                  <th className="py-4 px-5 text-white/50 font-semibold">
-                    Monkey
-                  </th>
-                  <th className="py-4 px-5 text-white/50 font-semibold">
-                    Chatroulette
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <ComparisonRow
-                  label="Requires college email"
-                  neptune="Verified"
-                  others={["Not required", "Not required", "Not required"]}
-                />
-                <ComparisonRow
-                  label="Age-verified accounts"
-                  neptune="Verified"
-                  others={["Unverified", "Unverified", "Unverified"]}
-                />
-                <ComparisonRow
-                  label="Password-protected login"
-                  neptune="Secure login"
-                  others={["Open access", "Open access", "Open access"]}
-                />
-                <ComparisonRow
-                  label="Video + text together"
-                  neptune="Included"
-                  others={["Included", "Included", "Included"]}
-                />
-                <ComparisonRow
-                  label="Instant re-match"
-                  neptune="Instant Next"
-                  others={["Instant Next", "Instant Next", "Instant Next"]}
-                  last
-                />
-              </tbody>
-            </table>
+      {/* College-focused alternative section */}
+      <section
+        id="college-video-chat"
+        className="relative z-10 max-w-4xl mx-auto px-6 pb-16 scroll-mt-24"
+        aria-labelledby="college-video-chat-heading"
+      >
+        <div className="rounded-3xl bg-black/20 border border-white/15 backdrop-blur p-7 md:p-10 shadow-2xl">
+          <div className="text-center max-w-2xl mx-auto">
+            <span className="inline-block text-xs font-bold uppercase tracking-widest text-yellow-300 mb-3">
+              College-focused random chat
+            </span>
+            <h2
+              id="college-video-chat-heading"
+              className="text-3xl md:text-4xl font-extrabold text-white tracking-tight"
+            >
+              Looking for an Omegle alternative for college students?
+            </h2>
+            <p className="mt-4 text-white/70 text-sm md:text-base leading-relaxed">
+              Neptune Chat takes the spontaneous part of random video chat and
+              builds it around a college-only community. Instead of an
+              open-internet audience, Neptune Chat requires student email
+              verification before a person can enter the matching experience.
+            </p>
+          </div>
+
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <InfoCard
+              eyebrow="Audience"
+              title="College students"
+              body="The experience is designed around students at colleges and universities rather than a general anonymous audience."
+            />
+            <InfoCard
+              eyebrow="Access"
+              title="Student verification"
+              body="A college or university .edu email is used to verify an account before chatting is enabled."
+            />
+            <InfoCard
+              eyebrow="Experience"
+              title="Random, not swipe-based"
+              body="Matching is built around live availability, so the goal is a spontaneous conversation rather than profile browsing."
+            />
           </div>
         </div>
+      </section>
 
-        <p className="text-center text-white/30 text-xs mt-4 italic">
-          Based on each platform's publicly stated sign-up requirements as of
-          2026. Feature availability may change over time.
-        </p>
+      {/* Safety / trust content — important for both users and search quality */}
+      <section
+        id="safety"
+        className="relative z-10 max-w-4xl mx-auto px-6 pb-16 scroll-mt-24"
+        aria-labelledby="safety-heading"
+      >
+        <div className="text-center mb-8">
+          <span className="inline-block text-xs font-bold uppercase tracking-widest text-yellow-300 mb-3">
+            Safety and community
+          </span>
+          <h2
+            id="safety-heading"
+            className="text-3xl md:text-4xl font-extrabold text-white tracking-tight"
+          >
+            A smaller, student-focused random chat community
+          </h2>
+          <p className="mt-3 text-white/65 max-w-2xl mx-auto text-sm md:text-base leading-relaxed">
+            Random chat should still give you control over the conversation.
+            Neptune Chat verifies student accounts and gives you a fast way to
+            leave a match whenever you want.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <FeatureCard
+            icon="✅"
+            title="Verified student accounts"
+            body="Chat access is tied to a verified college or university .edu email instead of an unrestricted guest session."
+          />
+          <FeatureCard
+            icon="🛑"
+            title="Leave instantly"
+            body="Use Next or Stop whenever you want to end a conversation or leave the matching queue."
+          />
+          <FeatureCard
+            icon="🧭"
+            title="Community tools can grow"
+            body="Neptune Chat can continue expanding reporting, moderation, and accountability tools as the student community grows."
+          />
+        </div>
       </section>
 
       {/* Ambassadors teaser */}
@@ -575,43 +877,29 @@ export default function LandingPage({ onGetStarted, onAmbassadors }) {
         </div>
 
         <div className="flex flex-col gap-3">
-          <FaqItem
-            question="What hours is Neptune Chat open?"
-            answer="Every night from 8:00 PM to 3:00 AM Eastern. Outside those hours the site shows a countdown to the next opening, and matching is turned off."
-          />
-          <FaqItem
-            question="Do I need a .edu email to use Neptune Chat?"
-            answer="Yes. Every account is verified with a real college or university email address ending in .edu before you can start chatting. This keeps the platform limited to actual college students."
-          />
-          <FaqItem
-            question="Is it really random?"
-            answer="Yes — you're paired with the next available verified student in the queue. There are no profiles, filters, or swiping involved."
-          />
-          <FaqItem
-            question="Can I use text chat instead of video?"
-            answer="Both are available in the same chat window. You can type messages alongside the video call, whether or not your camera is on."
-          />
-          <FaqItem
-            question="What if I want to leave a conversation?"
-            answer="Hit Next to end the current chat and get paired with someone new, or hit Stop to leave the queue entirely and return to the home screen."
-          />
-          <FaqItem
-            question="Is my information kept private?"
-            answer="Your video and audio go directly between you and the person you're matched with — it isn't stored on our servers. Your email is only used for account verification and login."
-          />
-          <FaqItem
-            question="What happens if someone behaves inappropriately?"
-            answer="You can leave the chat instantly with the Next or Stop button. Reporting tools are on our roadmap to help keep the community accountable."
-          />
+          {FAQ_ITEMS.map((item) => (
+            <FaqItem
+              key={item.question}
+              question={item.question}
+              answer={item.answer}
+            />
+          ))}
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="relative z-10 text-center pb-10">
-        <p className="text-white/40 text-xs">
-          © 2026 The Neptune Way LLC, A Florida Limited Liability Company. All rights reserved.
-        </p>
-      </footer>
+      </main>
+
+      {/* Shared site footer */}
+      <Footer
+        onHome={() =>
+          window.scrollTo({
+            top: 0,
+            behavior: "smooth",
+          })
+        }
+        onAmbassadors={onAmbassadors}
+        onGetStarted={onGetStarted}
+      />
     </div>
   );
 }
@@ -803,7 +1091,7 @@ function LogoConveyor() {
   return (
     <div className="relative z-10 max-w-5xl mx-auto px-6 pb-16">
       <p className="text-center text-white/40 text-xs font-semibold tracking-widest uppercase mb-5">
-        Trusted by students at
+        Built for the college community
       </p>
       <div className="relative overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]">
         <div
@@ -843,6 +1131,19 @@ function LogoTile({ school }) {
   );
 }
 
+
+function InfoCard({ eyebrow, title, body }) {
+  return (
+    <article className="rounded-2xl bg-white/10 border border-white/20 backdrop-blur p-6 text-left transition-all duration-200 hover:bg-white/15 hover:border-white/30 hover:-translate-y-1">
+      <span className="text-yellow-300 text-[10px] font-extrabold uppercase tracking-[0.18em]">
+        {eyebrow}
+      </span>
+      <h3 className="mt-2 text-white font-bold text-lg">{title}</h3>
+      <p className="mt-2 text-white/70 text-sm leading-relaxed">{body}</p>
+    </article>
+  );
+}
+
 function FeatureCard({ icon, title, body }) {
   return (
     <div className="rounded-2xl bg-white/10 border border-white/20 backdrop-blur p-6 text-left transition-all duration-200 hover:bg-white/15 hover:border-white/30 hover:-translate-y-1">
@@ -851,47 +1152,6 @@ function FeatureCard({ icon, title, body }) {
       <p className="mt-1.5 text-white/70 text-sm leading-relaxed">{body}</p>
     </div>
   );
-}
-
-function ComparisonRow({ label, neptune, others, last }) {
-  return (
-    <tr className={last ? "" : "border-b border-white/10"}>
-      <td className="py-4 px-5 text-white/80 font-medium">{label}</td>
-      <td className="py-4 px-5">
-        <Mark value={neptune} highlight />
-      </td>
-      {others.map((val, i) => (
-        <td key={i} className="py-4 px-5">
-          <Mark value={val} />
-        </td>
-      ))}
-    </tr>
-  );
-}
-
-// Words carrying a positive meaning render green, negative words render rose,
-// anything else (neutral/shared features) renders a soft slate.
-const POSITIVE_WORDS = [
-  "verified",
-  "secure login",
-  "included",
-  "instant next",
-];
-const NEGATIVE_WORDS = ["not required", "unverified", "open access"];
-
-function Mark({ value, highlight }) {
-  const normalized = value.toLowerCase();
-  let tone = "text-white/60 font-medium";
-
-  if (POSITIVE_WORDS.includes(normalized)) {
-    tone = highlight
-      ? "text-emerald-300 font-semibold"
-      : "text-emerald-300/70 font-medium";
-  } else if (NEGATIVE_WORDS.includes(normalized)) {
-    tone = "text-rose-300/70 font-medium";
-  }
-
-  return <span className={tone}>{value}</span>;
 }
 
 function FaqItem({ question, answer }) {

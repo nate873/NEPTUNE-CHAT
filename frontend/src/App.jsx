@@ -1,114 +1,343 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
+
 import LandingPage from "./LandingPage";
-import AmbassadorsPage from "./AmbassadorsPage"; // must match your actual filename exactly
-import AmbassadorApplication from "./AmbassadorApplication"; // must match your actual filename exactly
+import AmbassadorsPage from "./AmbassadorsPage";
+import AmbassadorApplication from "./AmbassadorApplication";
+import OmegleAlternative from "./OmegleAlternative";
+
 import EduAuth from "./EduAuth";
 import ChatRoom from "./ChatRoom";
 
 function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+
   const [showAuth, setShowAuth] = useState(false);
-  const [authMode, setAuthMode] = useState("signup"); // "signin" | "signup"
-  // Tracks whether the user has FULLY completed onboarding
-  // (either they were already logged in from a past visit, or they
-  // just finished the sign-up flow including setting a password).
-  // This prevents the app from jumping straight to ChatRoom the instant
-  // Supabase creates a session mid-verification, before the password step.
+  const [authMode, setAuthMode] = useState("signup");
+
+  // User has fully completed authentication/onboarding.
   const [authComplete, setAuthComplete] = useState(false);
-  // Shows the public Ambassadors marketing page, independent of auth state.
-  const [showAmbassadors, setShowAmbassadors] = useState(false);
-  // Shows the ambassador application form, reached from the Ambassadors page.
+
+  // Ambassador application is still temporary state.
   const [showApplication, setShowApplication] = useState(false);
+
+  // =========================================================
+  // PUBLIC URL ROUTING
+  // =========================================================
+
+  const [publicPath, setPublicPath] = useState(
+    normalizePath(window.location.pathname)
+  );
+
+  // =========================================================
+  // SUPABASE AUTH
+  // =========================================================
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
+
       if (data.session) {
-        // A session already existed (returning user reload) — fully logged in.
         setAuthComplete(true);
       }
+
       setLoading(false);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, newSession) => {
         setSession(newSession);
+
         if (!newSession) {
-          // Signed out — reset everything back to the start.
           setAuthComplete(false);
           setShowAuth(false);
         }
-        // NOTE: we intentionally do NOT set authComplete = true here just
-        // because a session appeared. During sign-up, verifyOtp() creates
-        // a session before the user has set a password. authComplete only
-        // becomes true via EduAuth's onVerified callback (handleFinish below)
-        // or if a session already existed on initial load (above).
       }
     );
 
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
-  function handleFinish(finishedSession) {
-    setSession(finishedSession);
-    setAuthComplete(true);
+  // =========================================================
+  // BROWSER BACK / FORWARD
+  // =========================================================
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setPublicPath(
+        normalizePath(window.location.pathname)
+      );
+
+      setShowApplication(false);
+      setShowAuth(false);
+    };
+
+    window.addEventListener(
+      "popstate",
+      handlePopState
+    );
+
+    return () => {
+      window.removeEventListener(
+        "popstate",
+        handlePopState
+      );
+    };
+  }, []);
+
+  // =========================================================
+  // SCROLL TO TOP WHEN PAGE CHANGES
+  // =========================================================
+
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: "auto",
+    });
+  }, [publicPath]);
+
+  // =========================================================
+  // PUBLIC NAVIGATION
+  // =========================================================
+
+  function navigatePublic(path) {
+    const normalized =
+      normalizePath(path);
+
+    if (
+      normalizePath(
+        window.location.pathname
+      ) !== normalized
+    ) {
+      window.history.pushState(
+        {},
+        "",
+        normalized
+      );
+    }
+
+    setPublicPath(normalized);
+
+    setShowApplication(false);
+    setShowAuth(false);
   }
 
-  // Shared handler so both pages' nav "Log In"/"Sign Up" buttons behave the
-  // same way: drop out of the Ambassadors page (if on it) and into auth.
+  function handleHome() {
+    navigatePublic("/");
+  }
+
+  function handleOpenOmegleAlternative() {
+    navigatePublic(
+      "/omegle-alternative"
+    );
+  }
+
+  function handleOpenAmbassadors() {
+    navigatePublic("/ambassadors");
+  }
+
+  // =========================================================
+  // AUTH
+  // =========================================================
+
+  function handleFinish(
+    finishedSession
+  ) {
+    setSession(finishedSession);
+    setAuthComplete(true);
+    setShowAuth(false);
+    setShowApplication(false);
+
+    // Chat application lives at /
+    if (
+      window.location.pathname !== "/"
+    ) {
+      window.history.pushState(
+        {},
+        "",
+        "/"
+      );
+
+      setPublicPath("/");
+    }
+  }
+
   function handleGetStarted(mode) {
-    setShowAmbassadors(false);
-    setAuthMode(mode || "signup");
+    // Return to the app root before
+    // opening authentication.
+    if (
+      window.location.pathname !== "/"
+    ) {
+      window.history.pushState(
+        {},
+        "",
+        "/"
+      );
+    }
+
+    setPublicPath("/");
+
+    setShowApplication(false);
+
+    setAuthMode(
+      mode || "signup"
+    );
+
     setShowAuth(true);
   }
+
+  // =========================================================
+  // LOADING
+  // =========================================================
 
   if (loading) {
     return (
       <div className="min-h-screen w-full bg-gradient-to-br from-indigo-600 via-violet-600 to-blue-600 flex items-center justify-center">
-        <p className="text-white font-medium">Loading...</p>
+        <div className="text-center">
+          <div
+            className="
+              w-10
+              h-10
+              mx-auto
+              mb-4
+              rounded-full
+              border-4
+              border-white/20
+              border-t-yellow-300
+              animate-spin
+            "
+          />
+
+          <p className="text-white font-medium">
+            Loading Neptune Chat...
+          </p>
+        </div>
       </div>
     );
   }
 
-  // Ambassador application form — reached via the Ambassadors page's Apply
-  // buttons. Shown before the marketing page check below so it doesn't get
-  // swallowed by showAmbassadors being true.
-  if (showApplication) {
+  // =========================================================
+  // PUBLIC SEO / GEO PAGE:
+  // OMEGLE ALTERNATIVE
+  // =========================================================
+
+  if (
+    publicPath ===
+    "/omegle-alternative"
+  ) {
     return (
-      <AmbassadorApplication
-        onBack={() => setShowApplication(false)}
-        onGetStarted={handleGetStarted}
+      <OmegleAlternative
+        onHome={handleHome}
+        onAmbassadors={
+          handleOpenAmbassadors
+        }
+        onGetStarted={
+          handleGetStarted
+        }
       />
     );
   }
 
-  // Ambassadors page is public marketing content — show it regardless of
-  // auth state, before we branch into the sign-up/chat flow below.
-  if (showAmbassadors) {
+  // =========================================================
+  // PUBLIC PAGE:
+  // AMBASSADORS
+  // =========================================================
+
+  if (
+    publicPath === "/ambassadors"
+  ) {
+    // Application form
+    if (showApplication) {
+      return (
+        <AmbassadorApplication
+          onBack={() =>
+            setShowApplication(false)
+          }
+          onGetStarted={
+            handleGetStarted
+          }
+        />
+      );
+    }
+
+    // Ambassador marketing page
     return (
       <AmbassadorsPage
-        onBack={() => setShowAmbassadors(false)}
-        onGetStarted={handleGetStarted}
-        onApply={() => setShowApplication(true)}
+        onBack={handleHome}
+        onGetStarted={
+          handleGetStarted
+        }
+        onApply={() =>
+          setShowApplication(true)
+        }
       />
     );
   }
+
+  // =========================================================
+  // PUBLIC HOME / AUTH
+  // =========================================================
 
   if (!authComplete) {
     if (!showAuth) {
       return (
         <LandingPage
-          onGetStarted={handleGetStarted}
-          onAmbassadors={() => setShowAmbassadors(true)}
+          onGetStarted={
+            handleGetStarted
+          }
+          onAmbassadors={
+            handleOpenAmbassadors
+          }
+          onOmegleAlternative={
+            handleOpenOmegleAlternative
+          }
         />
       );
     }
-    return <EduAuth onVerified={handleFinish} initialMode={authMode} />;
+
+    return (
+      <EduAuth
+        onVerified={handleFinish}
+        initialMode={authMode}
+      />
+    );
   }
 
-  return <ChatRoom session={session} />;
+  // =========================================================
+  // AUTHENTICATED CHAT APP
+  // =========================================================
+
+  return (
+    <ChatRoom session={session} />
+  );
+}
+
+// =========================================================
+// NORMALIZE URL
+// =========================================================
+
+function normalizePath(path) {
+  if (!path) {
+    return "/";
+  }
+
+  let normalized = path
+    .split("?")[0]
+    .split("#")[0];
+
+  if (
+    normalized.length > 1 &&
+    normalized.endsWith("/")
+  ) {
+    normalized =
+      normalized.slice(0, -1);
+  }
+
+  return normalized || "/";
 }
 
 export default App;
